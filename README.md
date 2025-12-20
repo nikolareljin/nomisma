@@ -1,6 +1,6 @@
 # Nomisma - Coin Analysis & Cataloging System
 
-![CI/CD](https://github.com/YOUR_USERNAME/nomisma/workflows/CI%2FCD%20Pipeline/badge.svg)
+![CI/CD](https://github.com/nikolareljin/nomisma/workflows/CI%2FCD%20Pipeline/badge.svg)
 
 🪙 A comprehensive coin analysis and cataloging application with AI-powered identification, valuation, and eBay integration.
 
