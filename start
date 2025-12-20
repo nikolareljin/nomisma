@@ -1,0 +1,288 @@
+#!/bin/bash
+# SCRIPT: start
+# DESCRIPTION: Start the Nomisma coin analysis application with all required services
+# USAGE: ./start [-b] [-s] [-h]
+# PARAMETERS:
+#   -b    Rebuild Docker images before starting
+#   -s    Setup admin user (prompts for username/password)
+#   -h    Display this help message
+# EXAMPLE: ./start -b -s
+
+# Source script-helpers
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Check if script-helpers is installed
+if [ ! -f "${SCRIPT_DIR}/.script-helpers/helpers.sh" ]; then
+    echo "⚠️  Warning: script-helpers not found"
+    echo "This script requires the script-helpers library."
+    echo ""
+    echo "To install it, run:"
+    echo "  ./update"
+    echo ""
+    read -p "Would you like to run ./update now? (y/n): " response
+    if [[ "$response" =~ ^[Yy]$ ]]; then
+        "${SCRIPT_DIR}/update"
+        echo ""
+        echo "Please run ./start again"
+        exit 0
+    else
+        echo "Exiting. Please run ./update before using this script."
+        exit 1
+    fi
+fi
+
+source "${SCRIPT_DIR}/.script-helpers/helpers.sh"
+shlib_import logging help env
+
+# Parse command line arguments
+REBUILD=false
+SETUP_ADMIN=false
+
+while getopts "bsh" opt; do
+    case $opt in
+        b)
+            REBUILD=true
+            ;;
+        s)
+            SETUP_ADMIN=true
+            ;;
+        h)
+            display_help "$0"
+            exit 0
+            ;;
+        \?)
+            echo "Invalid option: -$OPTARG" >&2
+            echo "Use -h for help"
+            exit 1
+            ;;
+    esac
+done
+
+log_header "Starting Nomisma - Coin Analysis System"
+
+# Check if Docker is installed
+if ! command -v docker &> /dev/null; then
+    log_error "Docker is not installed"
+    log_info "Please install Docker from https://docs.docker.com/get-docker/"
+    exit 1
+fi
+
+# Check if Docker Compose is installed
+if ! command -v docker-compose &> /dev/null && ! docker compose version &> /dev/null; then
+    log_error "Docker Compose is not installed"
+    log_info "Please install Docker Compose from https://docs.docker.com/compose/install/"
+    exit 1
+fi
+
+# Determine compose command
+if command -v docker-compose &> /dev/null; then
+    COMPOSE_CMD="docker-compose"
+else
+    COMPOSE_CMD="docker compose"
+fi
+
+# Check if .env file exists, create from example if not
+if [ ! -f .env ]; then
+    log_warning ".env file not found"
+    if [ -f .env.example ]; then
+        log_info "Creating .env from .env.example..."
+        cp .env.example .env
+        log_success "Created .env file"
+    else
+        log_error ".env.example not found!"
+        exit 1
+    fi
+fi
+
+# Load environment variables using script-helpers
+load_env .env
+
+# Check for required environment variables using script-helpers
+MISSING_VARS=()
+
+# Database credentials (required)
+if ! require_env POSTGRES_USER 2>/dev/null || [ "$POSTGRES_USER" = "your_postgres_user" ]; then
+    MISSING_VARS+=("POSTGRES_USER")
+fi
+
+if ! require_env POSTGRES_PASSWORD 2>/dev/null || [ "$POSTGRES_***** ]; then
+    MISSING_VARS+=("POSTGRES_PASSWORD")
+fi
+
+# Secret key (required for authentication)
+if ! require_env SECRET_KEY 2>/dev/null || [ "$SECRET_KEY" = "your-secret-key-change-in-production-use-openssl-rand-hex-32" ]; then
+    MISSING_VARS+=("SECRET_KEY")
+fi
+
+# Optional but recommended
+OPTIONAL_MISSING=()
+if [ -z "$GEMINI_API_KEY" ] || [ "$GEMINI_API_KEY" = "your_gemini_api_key_here" ]; then
+    OPTIONAL_MISSING+=("GEMINI_API_KEY (AI features will use mock data)")
+fi
+
+if [ -z "$EBAY_APP_ID" ] || [ "$EBAY_APP_ID" = "your_ebay_app_id" ]; then
+    OPTIONAL_MISSING+=("EBAY_APP_ID (eBay features will use mock data)")
+fi
+
+# If there are missing required variables, prompt for them
+if [ ${#MISSING_VARS[@]} -gt 0 ]; then
+    echo ""
+    log_error "Missing required environment variables!"
+    echo ""
+    
+    for var in "${MISSING_VARS[@]}"; do
+        echo "   - $var"
+    done
+    
+    echo ""
+    log_info "Please configure these variables:"
+    echo ""
+    
+    # Prompt for each missing variable
+    if [[ " ${MISSING_VARS[@]} " =~ " POSTGRES_USER " ]]; then
+        read -p "Enter PostgreSQL username [nomisma_user]: " POSTGRES_USER
+        POSTGRES_USER=${POSTGRES_USER:-nomisma_user}
+        sed -i "s/^POSTGRES_USER=.*/POSTGRES_USER=$POSTGRES_USER/" .env
+    fi
+    
+    if [[ " ${MISSING_VARS[@]} " =~ " POSTGRES_PASSWORD " ]]; then
+        read -sp "Enter PostgreSQL password: " POSTGRES_PASSWORD
+        echo ""
+        sed -i "s/^POSTGRES_PASSWORD=.*/POSTGRES_PASSWORD=$POSTGRES_PASSWORD/" .env
+    fi
+    
+    if [[ " ${MISSING_VARS[@]} " =~ " SECRET_KEY " ]]; then
+        log_info "Generating secure SECRET_KEY..."
+        SECRET_KEY=$(openssl rand -hex 32 2>/dev/null || cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 64 | head -n 1)
+        sed -i "s|^SECRET_KEY=.*|SECRET_KEY=$SECRET_KEY|" .env
+        log_success "Generated SECRET_KEY"
+    fi
+    
+    echo ""
+    log_success "Required variables configured!"
+    
+    # Reload environment after updates
+    load_env .env
+fi
+
+# Show warnings for optional missing variables
+if [ ${#OPTIONAL_MISSING[@]} -gt 0 ]; then
+    echo ""
+    log_warning "Optional environment variables not configured:"
+    for var in "${OPTIONAL_MISSING[@]}"; do
+        echo "   - $var"
+    done
+    echo ""
+    log_info "The application will start with limited functionality."
+    log_info "You can add these later by editing .env and restarting."
+    echo ""
+    read -p "Press Enter to continue or Ctrl+C to exit and configure now..."
+fi
+
+# Create images directory if it doesn't exist
+mkdir -p images
+
+echo ""
+log_step "Starting Docker containers..."
+echo ""
+
+# Build and start containers
+if [ "$REBUILD" = true ]; then
+    log_info "Rebuilding Docker images..."
+    $COMPOSE_CMD up -d --build
+else
+    $COMPOSE_CMD up -d
+fi
+
+echo ""
+log_step "Waiting for services to be ready..."
+sleep 5
+
+# Check if services are running
+BACKEND_STATUS=$($COMPOSE_CMD ps -q backend | xargs docker inspect -f '{{.State.Status}}' 2>/dev/null || echo "not running")
+FRONTEND_STATUS=$($COMPOSE_CMD ps -q frontend | xargs docker inspect -f '{{.State.Status}}' 2>/dev/null || echo "not running")
+DB_STATUS=$($COMPOSE_CMD ps -q db | xargs docker inspect -f '{{.State.Status}}' 2>/dev/null || echo "not running")
+
+echo ""
+log_info "Service Status:"
+echo "   Database:  $DB_STATUS"
+echo "   Backend:   $BACKEND_STATUS"
+echo "   Frontend:  $FRONTEND_STATUS"
+echo ""
+
+if [ "$BACKEND_STATUS" = "running" ] && [ "$FRONTEND_STATUS" = "running" ] && [ "$DB_STATUS" = "running" ]; then
+    log_success "All services are running!"
+    echo ""
+    
+    # Setup admin user if requested
+    if [ "$SETUP_ADMIN" = true ]; then
+        echo ""
+        log_header "Admin User Setup"
+        echo ""
+        
+        read -p "Enter admin username: " ADMIN_USERNAME
+        read -sp "Enter admin password: " ADMIN_PASSWORD
+        echo ""
+        read -sp "Confirm admin password: " ADMIN_PASSWORD_CONFIRM
+        echo ""
+        
+        if [ "$ADMIN_PASSWORD" != "$ADMIN_PASSWORD_CONFIRM" ]; then
+            log_error "Passwords do not match!"
+            exit 1
+        fi
+        
+        read -p "Enter admin email: " ADMIN_EMAIL
+        
+        echo ""
+        log_step "Creating admin user..."
+        
+        # Wait a bit more for backend to be fully ready
+        sleep 3
+        
+        # Create admin user via API
+        RESPONSE=$(curl -s -X POST http://localhost:8000/api/auth/register \
+            -H "Content-Type: application/json" \
+            -d "{\"username\":\"$ADMIN_USERNAME\",\"email\":\"$ADMIN_EMAIL\",\"password\":\"$ADMIN_PASSWORD\"}")
+        
+        if echo "$RESPONSE" | grep -q "id"; then
+            log_success "Admin user created successfully!"
+            echo "   Username: $ADMIN_USERNAME"
+            echo "   Email: $ADMIN_EMAIL"
+        else
+            log_error "Failed to create admin user"
+            echo "   Response: $RESPONSE"
+            log_info "You can try again later with: ./start -s"
+        fi
+        echo ""
+    fi
+    
+    log_info "Application URLs:"
+    echo "   Frontend:  http://localhost:3000"
+    echo "   Backend:   http://localhost:8000"
+    echo "   API Docs:  http://localhost:8000/docs"
+    echo ""
+    log_info "Quick Tips:"
+    echo "   - Run './status' to check service health"
+    echo "   - Run '$COMPOSE_CMD logs -f' to view logs"
+    echo "   - Run './stop' to stop all services"
+    if [ "$SETUP_ADMIN" != true ]; then
+        echo "   - Run './start -s' to create an admin user"
+    fi
+    echo ""
+    
+    # Try to open browser
+    if command -v xdg-open &> /dev/null; then
+        log_step "Opening application in browser..."
+        xdg-open http://localhost:3000 &> /dev/null &
+    elif command -v open &> /dev/null; then
+        log_step "Opening application in browser..."
+        open http://localhost:3000 &> /dev/null &
+    fi
+else
+    log_warning "Some services may not be running properly"
+    echo "   Run './status' for more details"
+    echo "   Run '$COMPOSE_CMD logs' to view error messages"
+fi
+
+echo ""
+log_header "Nomisma is ready!"

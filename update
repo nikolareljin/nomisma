@@ -1,0 +1,85 @@
+#!/bin/bash
+# SCRIPT: update
+# DESCRIPTION: Update git submodules including script-helpers library to ensure latest versions
+# USAGE: ./update [-h]
+# PARAMETERS:
+#   -h    Display this help message
+# EXAMPLE: ./update
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Try to source script-helpers if available, but don't fail if it's not
+if [ -f "${SCRIPT_DIR}/.script-helpers/helpers.sh" ]; then
+    source "${SCRIPT_DIR}/.script-helpers/helpers.sh"
+    shlib_import logging help
+    HELPERS_AVAILABLE=true
+else
+    HELPERS_AVAILABLE=false
+fi
+
+# Parse command line arguments
+while getopts "h" opt; do
+    case $opt in
+        h)
+            if [ "$HELPERS_AVAILABLE" = true ]; then
+                display_help "$0"
+            else
+                # Fallback manual help if script-helpers not installed yet
+                cat << 'EOF'
+Script Name: update
+Description: Update git submodules including script-helpers library to ensure latest versions
+Usage: ./update [-h]
+Parameters:
+  -h    Display this help message
+Example: ./update
+----------------------------------------------------
+EOF
+            fi
+            exit 0
+            ;;
+        \?)
+            echo "Invalid option: -$OPTARG" >&2
+            echo "Use -h for help"
+            exit 1
+            ;;
+    esac
+done
+
+echo "🔄 Updating Nomisma Dependencies"
+echo "================================="
+echo ""
+
+# Check if git is installed
+if ! command -v git &> /dev/null; then
+    echo "❌ Error: git is not installed"
+    exit 1
+fi
+
+# Check if we're in a git repository
+if [ ! -d .git ]; then
+    echo "⚠️  Warning: Not a git repository"
+    echo "Initializing git repository..."
+    git init
+fi
+
+# Initialize and update submodules
+echo "📦 Initializing and updating git submodules..."
+git submodule update --init --recursive
+
+# Check if script-helpers was successfully installed
+if [ -d .script-helpers ] && [ -f .script-helpers/helpers.sh ]; then
+    echo "✅ script-helpers installed successfully"
+else
+    echo "❌ Failed to install script-helpers"
+    echo "Please check your git configuration and network connection"
+    exit 1
+fi
+
+echo ""
+echo "================================="
+echo "✅ Update complete!"
+echo ""
+echo "You can now use the enhanced scripts:"
+echo "  ./start    - Start the application"
+echo "  ./stop     - Stop the application"
+echo "  ./status   - Check application status"

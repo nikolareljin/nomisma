@@ -1,0 +1,204 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  test-backend:
+    name: Test Backend
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        submodules: recursive
+    
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+    
+    - name: Cache Python dependencies
+      uses: actions/cache@v3
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ hashFiles('backend/requirements.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-
+    
+    - name: Install dependencies
+      run: |
+        cd backend
+        pip install --upgrade pip
+        pip install -r requirements.txt
+    
+    - name: Lint with flake8
+      run: |
+        pip install flake8
+        cd backend
+        # Stop the build if there are Python syntax errors or undefined names
+        flake8 app --count --select=E9,F63,F7,F82 --show-source --statistics
+        # Exit-zero treats all errors as warnings
+        flake8 app --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+      continue-on-error: true
+
+  test-frontend:
+    name: Test Frontend
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        submodules: recursive
+    
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+    
+    - name: Cache Node modules
+      uses: actions/cache@v3
+      with:
+        path: frontend/node_modules
+        key: ${{ runner.os }}-node-${{ hashFiles('frontend/package-lock.json') }}
+        restore-keys: |
+          ${{ runner.os }}-node-
+    
+    - name: Install dependencies
+      run: |
+        cd frontend
+        npm ci
+    
+    - name: Lint
+      run: |
+        cd frontend
+        npm run lint || true
+      continue-on-error: true
+    
+    - name: Build
+      run: |
+        cd frontend
+        npm run build
+
+  build-docker:
+    name: Build Docker Images
+    runs-on: ubuntu-latest
+    needs: [test-backend, test-frontend]
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        submodules: recursive
+    
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+    
+    - name: Create .env file
+      run: |
+        cp .env.example .env
+        # Set minimal required values for build
+        sed -i 's/your_postgres_user/test_user/' .env
+        sed -i 's/your_postgres_password/test_password/' .env
+        sed -i 's/your-secret-key-change-in-production-use-openssl-rand-hex-32/test-secret-key-for-ci-only/' .env
+    
+    - name: Build backend image
+      run: |
+        docker build -t nomisma-backend:test ./backend
+    
+    - name: Build frontend image
+      run: |
+        docker build -t nomisma-frontend:test ./frontend
+    
+    - name: Test docker-compose build
+      run: |
+        docker-compose build
+    
+    - name: Verify images
+      run: |
+        docker images | grep nomisma
+
+  validate-config:
+    name: Validate Configuration
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        submodules: recursive
+    
+    - name: Validate docker-compose.yml
+      run: |
+        docker-compose config
+    
+    - name: Check .env.example
+      run: |
+        if [ ! -f .env.example ]; then
+          echo "Error: .env.example not found"
+          exit 1
+        fi
+        echo ".env.example found ✓"
+    
+    - name: Validate database schema
+      run: |
+        if [ ! -f database/init.sql ]; then
+          echo "Error: database/init.sql not found"
+          exit 1
+        fi
+        echo "Database schema found ✓"
+    
+    - name: Check required files
+      run: |
+        files=(
+          "README.md"
+          "docker-compose.yml"
+          ".gitignore"
+          "backend/Dockerfile"
+          "backend/requirements.txt"
+          "frontend/Dockerfile"
+          "frontend/package.json"
+          "start"
+          "stop"
+          "status"
+          "update"
+        )
+        
+        for file in "${files[@]}"; do
+          if [ ! -f "$file" ]; then
+            echo "Error: Required file $file not found"
+            exit 1
+          fi
+        done
+        
+        echo "All required files present ✓"
+
+  security-scan:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        submodules: recursive
+    
+    - name: Run Trivy vulnerability scanner
+      uses: aquasecurity/trivy-action@master
+      with:
+        scan-type: 'fs'
+        scan-ref: '.'
+        format: 'sarif'
+        output: 'trivy-results.sarif'
+      continue-on-error: true
+    
+    - name: Upload Trivy results to GitHub Security
+      uses: github/codeql-action/upload-sarif@v3
+      with:
+        sarif_file: 'trivy-results.sarif'
+      continue-on-error: true

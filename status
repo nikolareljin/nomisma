@@ -1,0 +1,112 @@
+#!/bin/bash
+# SCRIPT: status
+# DESCRIPTION: Display status of all Nomisma application services including containers, health, and logs
+# USAGE: ./status [-h]
+# PARAMETERS:
+#   -h    Display this help message
+# EXAMPLE: ./status
+
+# Source script-helpers
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Check if script-helpers is installed
+if [ ! -f "${SCRIPT_DIR}/.script-helpers/helpers.sh" ]; then
+    echo "⚠️  Warning: script-helpers not found"
+    echo "This script requires the script-helpers library."
+    echo ""
+    echo "To install it, run:"
+    echo "  ./update"
+    echo ""
+    read -p "Would you like to run ./update now? (y/n): " response
+    if [[ "$response" =~ ^[Yy]$ ]]; then
+        "${SCRIPT_DIR}/update"
+        echo ""
+        echo "Please run ./status again"
+        exit 0
+    else
+        echo "Exiting. Please run ./update before using this script."
+        exit 1
+    fi
+fi
+
+source "${SCRIPT_DIR}/.script-helpers/helpers.sh"
+shlib_import logging help
+
+# Parse command line arguments
+while getopts "h" opt; do
+    case $opt in
+        h)
+            display_help "$0"
+            exit 0
+            ;;
+        \?)
+            echo "Invalid option: -$OPTARG" >&2
+            echo "Use -h for help"
+            exit 1
+            ;;
+    esac
+done
+
+log_header "Nomisma System Status"
+
+# Check if Docker Compose is available
+if command -v docker-compose &> /dev/null; then
+    COMPOSE_CMD="docker-compose"
+elif docker compose version &> /dev/null; then
+    COMPOSE_CMD="docker compose"
+else
+    log_error "Docker Compose not found"
+    exit 1
+fi
+
+# Show container status
+echo ""
+log_step "Container Status:"
+$COMPOSE_CMD ps
+echo ""
+
+# Check health of each service
+log_step "Service Health:"
+
+# Database
+DB_HEALTH=$($COMPOSE_CMD ps -q db | xargs docker inspect -f '{{.State.Health.Status}}' 2>/dev/null || echo "unknown")
+echo "   Database:  $DB_HEALTH"
+
+# Backend
+BACKEND_STATUS=$($COMPOSE_CMD ps -q backend | xargs docker inspect -f '{{.State.Status}}' 2>/dev/null || echo "not running")
+echo "   Backend:   $BACKEND_STATUS"
+
+# Frontend
+FRONTEND_STATUS=$($COMPOSE_CMD ps -q frontend | xargs docker inspect -f '{{.State.Status}}' 2>/dev/null || echo "not running")
+echo "   Frontend:  $FRONTEND_STATUS"
+
+echo ""
+
+# Show recent logs
+log_step "Recent Logs (last 10 lines per service):"
+echo ""
+echo "--- Backend ---"
+$COMPOSE_CMD logs --tail=10 backend
+echo ""
+echo "--- Frontend ---"
+$COMPOSE_CMD logs --tail=10 frontend
+echo ""
+
+# Show disk usage
+log_step "Disk Usage:"
+docker system df
+echo ""
+
+# Show network info
+log_step "Network Info:"
+echo "   Frontend:  http://localhost:3000"
+echo "   Backend:   http://localhost:8000"
+echo "   API Docs:  http://localhost:8000/docs"
+echo "   Database:  localhost:5432"
+echo ""
+
+log_info "Useful Commands:"
+echo "  View logs:    $COMPOSE_CMD logs -f [service]"
+echo "  Restart:      $COMPOSE_CMD restart [service]"
+echo "  Stop all:     ./stop"
+echo "  Start all:    ./start"

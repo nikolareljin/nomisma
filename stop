@@ -1,0 +1,87 @@
+#!/bin/bash
+# SCRIPT: stop
+# DESCRIPTION: Stop the Nomisma coin analysis application and optionally remove volumes
+# USAGE: ./stop [-v] [-h]
+# PARAMETERS:
+#   -v    Remove volumes (WARNING: deletes all data including database and images)
+#   -h    Display this help message
+# EXAMPLE: ./stop
+
+# Source script-helpers
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Check if script-helpers is installed
+if [ ! -f "${SCRIPT_DIR}/.script-helpers/helpers.sh" ]; then
+    echo "⚠️  Warning: script-helpers not found"
+    echo "This script requires the script-helpers library."
+    echo ""
+    echo "To install it, run:"
+    echo "  ./update"
+    echo ""
+    read -p "Would you like to run ./update now? (y/n): " response
+    if [[ "$response" =~ ^[Yy]$ ]]; then
+        "${SCRIPT_DIR}/update"
+        echo ""
+        echo "Please run ./stop again"
+        exit 0
+    else
+        echo "Exiting. Please run ./update before using this script."
+        exit 1
+    fi
+fi
+
+source "${SCRIPT_DIR}/.script-helpers/helpers.sh"
+shlib_import logging help
+
+# Parse command line arguments
+REMOVE_VOLUMES=false
+
+while getopts "hv" opt; do
+    case $opt in
+        h)
+            display_help "$0"
+            exit 0
+            ;;
+        v)
+            REMOVE_VOLUMES=true
+            ;;
+        \?)
+            echo "Invalid option: -$OPTARG" >&2
+            echo "Use -h for help"
+            exit 1
+            ;;
+    esac
+done
+
+log_header "Stopping Nomisma - Coin Analysis System"
+
+# Check if Docker Compose is available
+if command -v docker-compose &> /dev/null; then
+    COMPOSE_CMD="docker-compose"
+elif docker compose version &> /dev/null; then
+    COMPOSE_CMD="docker compose"
+else
+    log_error "Docker Compose not found"
+    exit 1
+fi
+
+# Stop containers
+if [ "$REMOVE_VOLUMES" = true ]; then
+    log_warning "Stopping containers and removing volumes..."
+    log_warning "This will DELETE all data including the database and images!"
+    read -p "Are you sure? (yes/no): " confirm
+    if [ "$confirm" = "yes" ]; then
+        $COMPOSE_CMD down -v
+        log_success "Containers stopped and volumes removed"
+    else
+        log_info "Operation cancelled"
+        exit 0
+    fi
+else
+    log_step "Stopping containers..."
+    $COMPOSE_CMD down
+    log_success "Containers stopped (data preserved)"
+fi
+
+echo ""
+log_info "To start the application again, run: ./start"
