@@ -105,7 +105,7 @@ if ! require_env POSTGRES_USER 2>/dev/null || [ "$POSTGRES_USER" = "your_postgre
     MISSING_VARS+=("POSTGRES_USER")
 fi
 
-if ! require_env POSTGRES_PASSWORD 2>/dev/null || [ "$POSTGRES_***** ]; then
+if ! require_env POSTGRES_PASSWORD 2>/dev/null || [ "$POSTGRES_PASSWORD" = "your_postgres_password" ]; then
     MISSING_VARS+=("POSTGRES_PASSWORD")
 fi
 
