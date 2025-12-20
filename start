@@ -58,7 +58,7 @@ while getopts "bsh" opt; do
     esac
 done
 
-log_header "Starting Nomisma - Coin Analysis System"
+log_info "Starting Nomisma - Coin Analysis System"
 
 # Check if Docker is installed
 if ! command -v docker &> /dev/null; then
@@ -83,11 +83,11 @@ fi
 
 # Check if .env file exists, create from example if not
 if [ ! -f .env ]; then
-    log_warning ".env file not found"
+    log_warn ".env file not found"
     if [ -f .env.example ]; then
         log_info "Creating .env from .env.example..."
         cp .env.example .env
-        log_success "Created .env file"
+        log_info "Created .env file"
     else
         log_error ".env.example not found!"
         exit 1
@@ -155,35 +155,147 @@ if [ ${#MISSING_VARS[@]} -gt 0 ]; then
         log_info "Generating secure SECRET_KEY..."
         SECRET_KEY=$(openssl rand -hex 32 2>/dev/null || cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 64 | head -n 1)
         sed -i "s|^SECRET_KEY=.*|SECRET_KEY=$SECRET_KEY|" .env
-        log_success "Generated SECRET_KEY"
+        log_info "Generated SECRET_KEY"
     fi
     
     echo ""
-    log_success "Required variables configured!"
+    log_info "Required variables configured!"
     
     # Reload environment after updates
     load_env .env
 fi
 
-# Show warnings for optional missing variables
+# Show warnings for optional missing variables with helpful setup links
 if [ ${#OPTIONAL_MISSING[@]} -gt 0 ]; then
     echo ""
-    log_warning "Optional environment variables not configured:"
+    log_warn "Optional API keys not configured:"
     for var in "${OPTIONAL_MISSING[@]}"; do
         echo "   - $var"
     done
     echo ""
-    log_info "The application will start with limited functionality."
-    log_info "You can add these later by editing .env and restarting."
+    
+    # Offer to help set up API keys
+    log_info "Would you like to set up these API keys now?"
     echo ""
-    read -p "Press Enter to continue or Ctrl+C to exit and configure now..."
+    read -p "Configure API keys? (y/n): " setup_apis
+    
+    if [[ "$setup_apis" =~ ^[Yy]$ ]]; then
+        
+        # Gemini API Key Setup
+        if [ -z "$GEMINI_API_KEY" ] || [ "$GEMINI_API_KEY" = "your_gemini_api_key_here" ]; then
+            echo ""
+            log_info "=== Google Gemini API Key Setup ==="
+            echo ""
+            echo "Steps to get your Gemini API key:"
+            echo "1. Sign in with your Google account"
+            echo "2. Click 'Get API key' button"
+            echo "3. Create a new API key or use existing one"
+            echo "4. Copy the API key"
+            echo ""
+            echo "URL: https://makersuite.google.com/app/apikey"
+            echo ""
+            read -p "Open browser to get Gemini API key? (y/n): " open_gemini
+            
+            if [[ "$open_gemini" =~ ^[Yy]$ ]]; then
+                if command -v xdg-open &> /dev/null; then
+                    xdg-open "https://makersuite.google.com/app/apikey" &> /dev/null &
+                elif command -v open &> /dev/null; then
+                    open "https://makersuite.google.com/app/apikey" &> /dev/null &
+                fi
+                log_info "Browser opened. Get your API key and return here."
+            fi
+            
+            echo ""
+            read -p "Enter your Gemini API key (or press Enter to skip): " GEMINI_KEY
+            
+            if [ -n "$GEMINI_KEY" ]; then
+                sed -i "s|^GEMINI_API_KEY=.*|GEMINI_API_KEY=$GEMINI_KEY|" .env
+                log_info "Gemini API key saved!"
+            else
+                log_warn "Skipped Gemini API key. AI features will use mock data."
+            fi
+        fi
+        
+        # eBay API Setup
+        if [ -z "$EBAY_APP_ID" ] || [ "$EBAY_APP_ID" = "your_ebay_app_id" ]; then
+            echo ""
+            log_info "=== eBay API Credentials Setup ==="
+            echo ""
+            echo "Steps to get eBay API credentials:"
+            echo "1. Sign in to eBay Developer Program"
+            echo "2. Go to 'My Account' > 'Application Keys'"
+            echo "3. Create a new application or use existing"
+            echo "4. Get your App ID, Dev ID, and Cert ID"
+            echo "5. Generate a User Token for authentication"
+            echo ""
+            echo "URL: https://developer.ebay.com/my/keys"
+            echo ""
+            echo "Note: You'll need to register for the eBay Developer Program first"
+            echo "Registration: https://developer.ebay.com/join"
+            echo ""
+            read -p "Open browser to get eBay credentials? (y/n): " open_ebay
+            
+            if [[ "$open_ebay" =~ ^[Yy]$ ]]; then
+                if command -v xdg-open &> /dev/null; then
+                    xdg-open "https://developer.ebay.com/my/keys" &> /dev/null &
+                elif command -v open &> /dev/null; then
+                    open "https://developer.ebay.com/my/keys" &> /dev/null &
+                fi
+                log_info "Browser opened. Get your credentials and return here."
+            fi
+            
+            echo ""
+            log_info "Enter eBay credentials (or press Enter to skip each):"
+            
+            read -p "eBay App ID: " EBAY_APP
+            if [ -n "$EBAY_APP" ]; then
+                sed -i "s|^EBAY_APP_ID=.*|EBAY_APP_ID=$EBAY_APP|" .env
+            fi
+            
+            read -p "eBay Dev ID: " EBAY_DEV
+            if [ -n "$EBAY_DEV" ]; then
+                sed -i "s|^EBAY_DEV_ID=.*|EBAY_DEV_ID=$EBAY_DEV|" .env
+            fi
+            
+            read -p "eBay Cert ID: " EBAY_CERT
+            if [ -n "$EBAY_CERT" ]; then
+                sed -i "s|^EBAY_CERT_ID=.*|EBAY_CERT_ID=$EBAY_CERT|" .env
+            fi
+            
+            read -p "eBay User Token: " EBAY_TOKEN
+            if [ -n "$EBAY_TOKEN" ]; then
+                sed -i "s|^EBAY_USER_TOKEN=.*|EBAY_USER_TOKEN=$EBAY_TOKEN|" .env
+            fi
+            
+            if [ -n "$EBAY_APP" ] || [ -n "$EBAY_DEV" ] || [ -n "$EBAY_CERT" ] || [ -n "$EBAY_TOKEN" ]; then
+                log_info "eBay credentials saved!"
+            else
+                log_warn "Skipped eBay credentials. eBay features will use mock data."
+            fi
+        fi
+        
+        echo ""
+        log_info "API key configuration complete!"
+        
+        # Reload environment after updates
+        load_env .env
+        
+    else
+        log_info "Skipping API key setup. The application will start with limited functionality."
+        log_info "You can configure API keys later by:"
+        echo "  1. Editing .env file manually"
+        echo "  2. Running './start' again and choosing to configure"
+        echo ""
+    fi
+    
+    read -p "Press Enter to continue starting the application..."
 fi
 
 # Create images directory if it doesn't exist
 mkdir -p images
 
 echo ""
-log_step "Starting Docker containers..."
+log_info "Starting Docker containers..."
 echo ""
 
 # Build and start containers
@@ -195,7 +307,7 @@ else
 fi
 
 echo ""
-log_step "Waiting for services to be ready..."
+log_info "Waiting for services to be ready..."
 sleep 5
 
 # Check if services are running
@@ -211,13 +323,13 @@ echo "   Frontend:  $FRONTEND_STATUS"
 echo ""
 
 if [ "$BACKEND_STATUS" = "running" ] && [ "$FRONTEND_STATUS" = "running" ] && [ "$DB_STATUS" = "running" ]; then
-    log_success "All services are running!"
+    log_info "All services are running!"
     echo ""
     
     # Setup admin user if requested
     if [ "$SETUP_ADMIN" = true ]; then
         echo ""
-        log_header "Admin User Setup"
+        log_info "Admin User Setup"
         echo ""
         
         read -p "Enter admin username: " ADMIN_USERNAME
@@ -234,7 +346,7 @@ if [ "$BACKEND_STATUS" = "running" ] && [ "$FRONTEND_STATUS" = "running" ] && [ 
         read -p "Enter admin email: " ADMIN_EMAIL
         
         echo ""
-        log_step "Creating admin user..."
+        log_info "Creating admin user..."
         
         # Wait a bit more for backend to be fully ready
         sleep 3
@@ -245,7 +357,7 @@ if [ "$BACKEND_STATUS" = "running" ] && [ "$FRONTEND_STATUS" = "running" ] && [ 
             -d "{\"username\":\"$ADMIN_USERNAME\",\"email\":\"$ADMIN_EMAIL\",\"password\":\"$ADMIN_PASSWORD\"}")
         
         if echo "$RESPONSE" | grep -q "id"; then
-            log_success "Admin user created successfully!"
+            log_info "Admin user created successfully!"
             echo "   Username: $ADMIN_USERNAME"
             echo "   Email: $ADMIN_EMAIL"
         else
@@ -272,17 +384,17 @@ if [ "$BACKEND_STATUS" = "running" ] && [ "$FRONTEND_STATUS" = "running" ] && [ 
     
     # Try to open browser
     if command -v xdg-open &> /dev/null; then
-        log_step "Opening application in browser..."
+        log_info "Opening application in browser..."
         xdg-open http://localhost:3000 &> /dev/null &
     elif command -v open &> /dev/null; then
-        log_step "Opening application in browser..."
+        log_info "Opening application in browser..."
         open http://localhost:3000 &> /dev/null &
     fi
 else
-    log_warning "Some services may not be running properly"
+    log_warn "Some services may not be running properly"
     echo "   Run './status' for more details"
     echo "   Run '$COMPOSE_CMD logs' to view error messages"
 fi
 
 echo ""
-log_header "Nomisma is ready!"
+log_info "Nomisma is ready!"

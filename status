@@ -47,7 +47,7 @@ while getopts "h" opt; do
     esac
 done
 
-log_header "Nomisma System Status"
+log_info "Nomisma System Status"
 
 # Check if Docker Compose is available
 if command -v docker-compose &> /dev/null; then
@@ -61,12 +61,12 @@ fi
 
 # Show container status
 echo ""
-log_step "Container Status:"
+log_info "Container Status:"
 $COMPOSE_CMD ps
 echo ""
 
 # Check health of each service
-log_step "Service Health:"
+log_info "Service Health:"
 
 # Database
 DB_HEALTH=$($COMPOSE_CMD ps -q db | xargs docker inspect -f '{{.State.Health.Status}}' 2>/dev/null || echo "unknown")
@@ -83,7 +83,7 @@ echo "   Frontend:  $FRONTEND_STATUS"
 echo ""
 
 # Show recent logs
-log_step "Recent Logs (last 10 lines per service):"
+log_info "Recent Logs (last 10 lines per service):"
 echo ""
 echo "--- Backend ---"
 $COMPOSE_CMD logs --tail=10 backend
@@ -93,12 +93,12 @@ $COMPOSE_CMD logs --tail=10 frontend
 echo ""
 
 # Show disk usage
-log_step "Disk Usage:"
+log_info "Disk Usage:"
 docker system df
 echo ""
 
 # Show network info
-log_step "Network Info:"
+log_info "Network Info:"
 echo "   Frontend:  http://localhost:3000"
 echo "   Backend:   http://localhost:8000"
 echo "   API Docs:  http://localhost:8000/docs"
