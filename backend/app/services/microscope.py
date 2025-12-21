@@ -1,5 +1,6 @@
 import cv2
 import os
+import glob
 from typing import List, Optional, Tuple
 from datetime import datetime
 import numpy as np
@@ -14,23 +15,59 @@ class MicroscopeService:
     def list_available_cameras(self) -> List[dict]:
         """List all available camera devices"""
         cameras = []
-        # Check first 5 video devices
-        for i in range(5):
-            cap = cv2.VideoCapture(i)
-            if cap.isOpened():
-                # Get camera properties
-                width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
-                height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-                fps = int(cap.get(cv2.CAP_PROP_FPS))
-                
-                cameras.append({
-                    "index": i,
-                    "name": f"Camera {i}",
-                    "resolution": f"{width}x{height}",
-                    "fps": fps,
-                    "device": f"/dev/video{i}"
-                })
+        # Prefer Linux device nodes when available.
+        linux_devices = sorted(glob.glob("/dev/video*"))
+        if linux_devices:
+            for device_path in linux_devices:
+                device_name = os.path.basename(device_path)
+                index = int(device_name.replace("video", "")) if device_name.startswith("video") else None
+                label = f"Camera {index}" if index is not None else device_name
+
+                sys_name_path = f"/sys/class/video4linux/{device_name}/name"
+                if os.path.exists(sys_name_path):
+                    try:
+                        with open(sys_name_path, "r", encoding="utf-8") as handle:
+                            sys_label = handle.read().strip()
+                            if sys_label:
+                                label = sys_label
+                    except OSError:
+                        pass
+
+                cap_backend = cv2.CAP_V4L2 if hasattr(cv2, "CAP_V4L2") else 0
+                cap = cv2.VideoCapture(device_path, cap_backend)
+                available = cap.isOpened()
+                width = height = fps = None
+                if available:
+                    width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+                    height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+                    fps = int(cap.get(cv2.CAP_PROP_FPS))
                 cap.release()
+
+                cameras.append({
+                    "index": index if index is not None else device_path,
+                    "name": label,
+                    "resolution": f"{width}x{height}" if width and height else "unknown",
+                    "fps": fps or 0,
+                    "device": device_path,
+                    "available": available,
+                })
+        else:
+            # Fallback: check first 10 indexes for non-Linux environments.
+            for i in range(10):
+                cap = cv2.VideoCapture(i)
+                if cap.isOpened():
+                    width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+                    height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+                    fps = int(cap.get(cv2.CAP_PROP_FPS))
+                    cameras.append({
+                        "index": i,
+                        "name": f"Camera {i}",
+                        "resolution": f"{width}x{height}",
+                        "fps": fps,
+                        "device": f"index:{i}",
+                        "available": True,
+                    })
+                    cap.release()
         
         return cameras
     
