@@ -4,6 +4,9 @@
 
 🪙 A comprehensive coin analysis and cataloging application with AI-powered identification, valuation, and eBay integration.
 
+<img width="861" height="551" alt="image" src="https://github.com/user-attachments/assets/25904dff-ad6a-4f00-9469-e4f344f6978c" />
+
+
 ## Features
 
 - 🔬 **Digital Microscope Integration** - Capture high-resolution coin images using USB microscopes (DM7-Z01C or compatible)
