@@ -1,0 +1,5 @@
+services:
+  backend:
+    devices:
+      - /dev/video0:/dev/video0  # Microscope USB camera access
+    privileged: true  # Required for camera access

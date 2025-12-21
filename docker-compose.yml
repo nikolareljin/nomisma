@@ -1,4 +1,4 @@
-version: '3.8'
+#version: '3.8'
 
 services:
   db:
@@ -37,15 +37,11 @@ services:
     volumes:
       - ./backend:/app
       - coin_images:/app/images
-      - /dev/video0:/dev/video0  # Microscope USB camera access
     ports:
       - "8000:8000"
     depends_on:
       db:
         condition: service_healthy
-    devices:
-      - /dev/video0:/dev/video0  # USB camera device
-    privileged: true  # Required for camera access
     restart: unless-stopped
 
   frontend:

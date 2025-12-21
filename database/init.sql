@@ -163,25 +163,24 @@ CREATE TABLE ebay_listings (
 );
 
 -- Indexes for performance
-CREATE INDEX idx_coins_inventory_number ON coins(inventory_number);
-CREATE INDEX idx_coins_country ON coins(country);
-CREATE INDEX idx_coins_year ON coins(year);
-CREATE INDEX idx_coins_denomination ON coins(denomination);
-CREATE INDEX idx_coins_condition_grade ON coins(condition_grade);
-CREATE INDEX idx_coins_inventory_number ON coins(inventory_number);
-CREATE INDEX idx_coins_user_id ON coins(user_id);
-CREATE INDEX idx_ai_analyses_coin_id ON ai_analyses(coin_id);
-CREATE INDEX idx_valuations_coin_id ON valuations(coin_id);
-CREATE INDEX idx_ebay_listings_coin_id ON ebay_listings(coin_id);
-CREATE INDEX idx_ebay_listings_status ON ebay_listings(status);
+CREATE INDEX IF NOT EXISTS idx_coins_inventory_number ON coins(inventory_number);
+CREATE INDEX IF NOT EXISTS idx_coins_country ON coins(country);
+CREATE INDEX IF NOT EXISTS idx_coins_year ON coins(year);
+CREATE INDEX IF NOT EXISTS idx_coins_denomination ON coins(denomination);
+CREATE INDEX IF NOT EXISTS idx_coins_condition_grade ON coins(condition_grade);
+CREATE INDEX IF NOT EXISTS idx_coins_user_id ON coins(user_id);
+CREATE INDEX IF NOT EXISTS idx_ai_analyses_coin_id ON ai_analyses(coin_id);
+CREATE INDEX IF NOT EXISTS idx_valuations_coin_id ON valuations(coin_id);
+CREATE INDEX IF NOT EXISTS idx_ebay_listings_coin_id ON ebay_listings(coin_id);
+CREATE INDEX IF NOT EXISTS idx_ebay_listings_status ON ebay_listings(status);
 
 -- Full-text search indexes
-CREATE INDEX idx_coins_notes_gin ON coins USING gin(to_tsvector('english', notes));
-CREATE INDEX idx_coins_defects_gin ON coins USING gin(to_tsvector('english', defects));
+CREATE INDEX IF NOT EXISTS idx_coins_notes_gin ON coins USING gin(to_tsvector('english', notes));
+CREATE INDEX IF NOT EXISTS idx_coins_defects_gin ON coins USING gin(to_tsvector('english', defects));
 
 -- Trigram indexes for fuzzy search
-CREATE INDEX idx_coins_country_trgm ON coins USING gin(country gin_trgm_ops);
-CREATE INDEX idx_coins_denomination_trgm ON coins USING gin(denomination gin_trgm_ops);
+CREATE INDEX IF NOT EXISTS idx_coins_country_trgm ON coins USING gin(country gin_trgm_ops);
+CREATE INDEX IF NOT EXISTS idx_coins_denomination_trgm ON coins USING gin(denomination gin_trgm_ops);
 
 -- Updated at trigger function
 CREATE OR REPLACE FUNCTION update_updated_at_column()
