@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useMutation, useQuery } from '@tantml:query';
+import { useMutation, useQuery } from '@tanstack/react-query';
 import { Camera, Upload, Loader2, CheckCircle, AlertCircle } from 'lucide-react';
 import { microscopeAPI, coinsAPI, aiAPI } from '../api';
 

@@ -52,23 +52,31 @@ ffplay /dev/video0
 
 ## Docker Configuration
 
-The `docker-compose.yml` file is already configured to give the backend container access to the microscope:
+Microscope access is enabled via the optional `docker-compose.microscope.yml` override file:
 
 ```yaml
-backend:
-  devices:
-    - /dev/video0:/dev/video0
-  privileged: true
+services:
+  backend:
+    devices:
+      - /dev/video0:/dev/video0
+    privileged: true
+```
+
+Start with the override:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.microscope.yml up -d
 ```
 
 ### Multiple Cameras
 
-If you have multiple cameras or the microscope is not `/dev/video0`, update `docker-compose.yml`:
+If you have multiple cameras or the microscope is not `/dev/video0`, update `docker-compose.microscope.yml`:
 
 ```yaml
-backend:
-  devices:
-    - /dev/video1:/dev/video1  # Change to your device
+services:
+  backend:
+    devices:
+      - /dev/video1:/dev/video1  # Change to your device
 ```
 
 ## Application Setup
@@ -149,7 +157,7 @@ For best AI analysis results:
    ```bash
    ls -l /dev/video0
    ```
-3. Ensure Docker has privileged access (already configured)
+3. Ensure Docker has privileged access (set in `docker-compose.microscope.yml`)
 
 ### Poor Image Quality
 
