@@ -78,7 +78,7 @@ if [ "$REMOVE_VOLUMES" = true ]; then
         exit 0
     fi
 else
-    log_step "Stopping containers..."
+    log_info "Stopping containers..."
     $COMPOSE_CMD down
     log_info "Containers stopped (data preserved)"
 fi
