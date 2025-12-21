@@ -33,7 +33,7 @@ class MicroscopeService:
                     except OSError:
                         pass
 
-                cap_backend = cv2.CAP_V4L2 if hasattr(cv2, "CAP_V4L2") else 0
+                cap_backend = cv2.CAP_V4L2 if hasattr(cv2, "CAP_V4L2") else cv2.CAP_ANY
                 cap = cv2.VideoCapture(device_path, cap_backend)
                 available = cap.isOpened()
                 width = height = fps = None
