@@ -4,6 +4,8 @@
 
 🪙 A comprehensive coin analysis and cataloging application with AI-powered identification, valuation, and eBay integration.
 
+   Named after the [Greek word for "money"](#nomisma), Nomisma honors the history of coinage at the heart of this project. 
+
 <img width="861" height="551" alt="image" src="https://github.com/user-attachments/assets/25904dff-ad6a-4f00-9469-e4f344f6978c" />
 
 
@@ -290,3 +292,8 @@ Each coin is automatically assigned a unique inventory number in the format `NOM
 - Track coins across different systems
 
 The inventory number is searchable and displayed prominently throughout the application.
+
+<a name="nomisma">
+### Nomisma
+
+Nomisma (νόμισμα) is the Ancient Greek word for money, currency, or a current coin, deriving from nomos (νόμος) meaning "law, custom, or usage," signifying money as something established by convention rather than nature. It specifically referred to official currency, famously the gold Byzantine solidus, and links to the English "numismatics" (study of coins) through Latin.
