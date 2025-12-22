@@ -13,7 +13,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # Check if script-helpers is installed
 if [ ! -f "${SCRIPT_DIR}/.script-helpers/helpers.sh" ]; then
-    echo "Warning: script-helpers not found"
+    echo "⚠️  Warning: script-helpers not found"
     echo "This script requires the script-helpers library."
     echo ""
     echo "To install it, run:"
