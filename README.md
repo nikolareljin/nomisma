@@ -135,26 +135,34 @@ The application will be available at:
 
 ```
 nomisma/
-├── backend/              # Python FastAPI backend
+├── backend/                 # Python FastAPI backend
 │   ├── app/
-│   │   ├── routes/      # API endpoints
-│   │   ├── services/    # Business logic
-│   │   ├── models.py    # Database models
-│   │   └── schemas.py   # Pydantic schemas
+│   │   ├── routes/          # API endpoints
+│   │   ├── services/        # Business logic
+│   │   ├── models.py        # Database models
+│   │   └── schemas.py       # Pydantic schemas
 │   ├── Dockerfile
 │   └── requirements.txt
-├── frontend/            # React frontend
+├── frontend/                # React frontend
 │   ├── src/
-│   │   ├── pages/      # React pages
-│   │   ├── components/ # Reusable components
-│   │   └── api.js      # API client
+│   │   ├── pages/           # React pages
+│   │   ├── components/      # Reusable components
+│   │   └── api.js           # API client
 │   ├── Dockerfile
 │   └── package.json
-├── database/            # PostgreSQL initialization
+├── database/                # PostgreSQL initialization
 │   └── init.sql
-├── docs/               # Documentation
-├── docker-compose.yml  # Container orchestration
-└── start              # Startup script
+├── docs/                    # Documentation
+├── images/                  # Stored coin images
+├── docker-compose.yml       # Container orchestration
+├── docker-compose.microscope.yml # Optional microscope services
+├── start                    # Start services
+├── stop                     # Stop services
+├── status                   # Service status
+├── test                     # Test runner
+├── update                   # Sync submodules
+├── setup.sh                 # Local setup (bash)
+└── setup.ps1                # Local setup (PowerShell)
 ```
 
 ## API Documentation
