@@ -21,6 +21,18 @@
 
 ## Quick Start
 
+### One-Line Setup
+
+macOS / Linux:
+```bash
+curl -fsSL https://raw.githubusercontent.com/nikolareljin/nomisma/main/setup.sh | bash
+```
+
+Windows (PowerShell):
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -Command "iwr -useb https://raw.githubusercontent.com/nikolareljin/nomisma/main/setup.ps1 | iex"
+```
+
 ### Prerequisites
 
 - Docker and Docker Compose installed
