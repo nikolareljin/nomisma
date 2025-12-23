@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
 import cv2
 import os
@@ -6,15 +6,12 @@ from datetime import datetime
 from uuid import uuid4
 
 from ..services.microscope import microscope_service
-from ..auth import get_current_user
-from ..models import User
-
 router = APIRouter()
 
 IMAGES_PATH = os.getenv("IMAGES_PATH", "/app/images")
 
 @router.get("/devices")
-async def list_devices(current_user: User = Depends(get_current_user)):
+async def list_devices():
     """List available camera devices"""
     try:
         cameras = microscope_service.list_available_cameras()
@@ -29,8 +26,7 @@ async def list_devices(current_user: User = Depends(get_current_user)):
 @router.post("/capture")
 async def capture_image(
     camera_index: int = 0,
-    image_type: str = "scan",
-    current_user: User = Depends(get_current_user)
+    image_type: str = "scan"
 ):
     """Capture an image from the microscope"""
     try:
@@ -67,8 +63,7 @@ async def capture_image(
 
 @router.get("/preview")
 async def get_preview(
-    camera_index: int = 0,
-    current_user: User = Depends(get_current_user)
+    camera_index: int = 0
 ):
     """Get a preview frame from the microscope"""
     try:
@@ -99,8 +94,7 @@ async def get_preview(
 
 @router.post("/camera/{camera_index}/open")
 async def open_camera(
-    camera_index: int,
-    current_user: User = Depends(get_current_user)
+    camera_index: int
 ):
     """Open a specific camera"""
     try:
@@ -117,7 +111,7 @@ async def open_camera(
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/camera/close")
-async def close_camera(current_user: User = Depends(get_current_user)):
+async def close_camera():
     """Close the current camera"""
     try:
         microscope_service.close_camera()

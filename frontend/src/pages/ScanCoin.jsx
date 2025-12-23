@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { Camera, Upload, Loader2, CheckCircle, AlertCircle } from 'lucide-react';
@@ -19,6 +19,17 @@ export default function ScanCoin() {
     });
 
     const cameras = camerasData?.data?.cameras || [];
+
+    useEffect(() => {
+        if (!cameras.length) {
+            return;
+        }
+        const selectedExists = cameras.some((cam) => cam.index === selectedCamera);
+        if (!selectedExists || cameras.find((cam) => cam.index === selectedCamera && cam.available === false)) {
+            const firstAvailable = cameras.find((cam) => cam.available !== false) || cameras[0];
+            setSelectedCamera(firstAvailable.index);
+        }
+    }, [cameras, selectedCamera]);
 
     // Capture mutation
     const captureMutation = useMutation({
@@ -146,28 +157,42 @@ export default function ScanCoin() {
                                 onChange={(e) => setSelectedCamera(Number(e.target.value))}
                                 className="input"
                             >
+                                {cameras.length === 0 && (
+                                    <option value={0} disabled>
+                                        No cameras detected
+                                    </option>
+                                )}
                                 {cameras.map((cam) => (
-                                    <option key={cam.index} value={cam.index}>
-                                        {cam.name} - {cam.resolution}
+                                    <option key={cam.index} value={cam.index} disabled={cam.available === false}>
+                                        {cam.name} - {cam.resolution}{cam.available === false ? ' (unavailable)' : ''}
                                     </option>
                                 ))}
                             </select>
                         </div>
 
                         <div className="bg-gray-900 rounded-lg aspect-video flex items-center justify-center">
-                            <img
-                                src={microscopeAPI.preview(selectedCamera)}
-                                alt="Microscope preview"
-                                className="max-w-full max-h-full"
-                                onError={(e) => {
-                                    e.target.style.display = 'none';
-                                    e.target.nextSibling.style.display = 'flex';
-                                }}
-                            />
-                            <div className="flex-col items-center justify-center text-gray-400" style={{ display: 'none' }}>
-                                <Camera className="w-16 h-16 mb-4" />
-                                <p>Camera preview unavailable</p>
-                            </div>
+                            {cameras.length > 0 ? (
+                                <>
+                                    <img
+                                        src={microscopeAPI.preview(selectedCamera)}
+                                        alt="Microscope preview"
+                                        className="max-w-full max-h-full"
+                                        onError={(e) => {
+                                            e.target.style.display = 'none';
+                                            e.target.nextSibling.style.display = 'flex';
+                                        }}
+                                    />
+                                    <div className="flex-col items-center justify-center text-gray-400" style={{ display: 'none' }}>
+                                        <Camera className="w-16 h-16 mb-4" />
+                                        <p>Camera preview unavailable</p>
+                                    </div>
+                                </>
+                            ) : (
+                                <div className="flex-col items-center justify-center text-gray-400 flex">
+                                    <Camera className="w-16 h-16 mb-4" />
+                                    <p>No cameras detected</p>
+                                </div>
+                            )}
                         </div>
 
                         <button

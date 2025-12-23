@@ -291,6 +291,19 @@ if [ ${#OPTIONAL_MISSING[@]} -gt 0 ]; then
     read -p "Press Enter to continue starting the application..."
 fi
 
+# Optional microscope support
+USE_MICROSCOPE=false
+MICROSCOPE_COMPOSE_FILE="docker-compose.microscope.yml"
+read -p "Will you use a microscope/camera device? (y/n): " use_microscope
+if [[ "$use_microscope" =~ ^[Yy]$ ]]; then
+    if [ -f "$MICROSCOPE_COMPOSE_FILE" ]; then
+        USE_MICROSCOPE=true
+        log_info "Microscope support enabled (using $MICROSCOPE_COMPOSE_FILE)."
+    else
+        log_warn "$MICROSCOPE_COMPOSE_FILE not found; starting without microscope support."
+    fi
+fi
+
 # Create images directory if it doesn't exist
 mkdir -p images
 
@@ -298,12 +311,19 @@ echo ""
 log_info "Starting Docker containers..."
 echo ""
 
+# Compose file arguments (include microscope override if requested)
+COMPOSE_ARGS=()
+COMPOSE_ARGS+=(-f docker-compose.yml)
+if [ "$USE_MICROSCOPE" = true ]; then
+    COMPOSE_ARGS+=(-f "$MICROSCOPE_COMPOSE_FILE")
+fi
+
 # Build and start containers
 if [ "$REBUILD" = true ]; then
     log_info "Rebuilding Docker images..."
-    $COMPOSE_CMD up -d --build
+    $COMPOSE_CMD "${COMPOSE_ARGS[@]}" up -d --build
 else
-    $COMPOSE_CMD up -d
+    $COMPOSE_CMD "${COMPOSE_ARGS[@]}" up -d
 fi
 
 echo ""
