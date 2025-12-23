@@ -21,6 +21,18 @@
 
 ## Quick Start
 
+### One-Line Setup
+
+macOS / Linux:
+```bash
+curl -fsSL https://raw.githubusercontent.com/nikolareljin/nomisma/main/setup.sh | bash
+```
+
+Windows (PowerShell):
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -Command "iwr -useb https://raw.githubusercontent.com/nikolareljin/nomisma/main/setup.ps1 | iex"
+```
+
 ### Prerequisites
 
 - Docker and Docker Compose installed
@@ -177,6 +189,45 @@ cd frontend
 npm install
 npm run dev
 ```
+
+### Testing
+
+**All tests (Docker):**
+```bash
+./test
+```
+
+**Single suite (Docker):**
+```bash
+./test -t backend   # backend pytest
+./test -t frontend  # frontend unit tests
+./test -t api       # backend /health check
+./test -t e2e       # Playwright E2E
+```
+
+**Backend (pytest):**
+```bash
+cd backend
+pip install -r requirements.txt
+pytest
+```
+
+**Frontend unit tests (Vitest):**
+```bash
+cd frontend
+npm install
+npm run test
+```
+
+**E2E tests (Playwright):**
+```bash
+cd frontend
+npm install
+npx playwright install
+npm run test:e2e
+```
+
+E2E assumes the frontend is running at `http://localhost:3000` and the API at `http://localhost:8000`. Override with `E2E_BASE_URL` or `API_BASE_URL` if needed.
 
 ### Database Migrations
 

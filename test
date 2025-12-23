@@ -1,0 +1,308 @@
+#!/bin/bash
+# SCRIPT: test
+# DESCRIPTION: Run Nomisma tests using Docker containers
+# USAGE: ./test [-t backend|frontend|e2e|api] [-h]
+# PARAMETERS:
+#   -t    Test type to run (backend, frontend, e2e, api)
+#   -h    Display this help message
+# EXAMPLE: ./test -t backend
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Check if script-helpers is installed
+if [ ! -f "${SCRIPT_DIR}/.script-helpers/helpers.sh" ]; then
+    echo "⚠️  Warning: script-helpers not found"
+    echo "This script requires the script-helpers library."
+    echo ""
+    echo "To install it, run:"
+    echo "  ./update"
+    echo ""
+    read -p "Would you like to run ./update now? (y/n): " response
+    if [[ "$response" =~ ^[Yy]$ ]]; then
+        "${SCRIPT_DIR}/update"
+        echo ""
+        echo "Please run ./test again"
+        exit 0
+    else
+        echo "Exiting. Please run ./update before using this script."
+        exit 1
+    fi
+fi
+
+source "${SCRIPT_DIR}/.script-helpers/helpers.sh"
+shlib_import logging help
+
+TEST_TYPE="all"
+
+while getopts "ht:" opt; do
+    case $opt in
+        h)
+            display_help "$0"
+            exit 0
+            ;;
+        t)
+            TEST_TYPE="$OPTARG"
+            ;;
+        \?)
+            echo "Invalid option: -$OPTARG" >&2
+            echo "Use -h for help"
+            exit 1
+            ;;
+    esac
+done
+
+case "$TEST_TYPE" in
+    all|backend|frontend|e2e|api) ;;
+    *)
+        log_error "Invalid test type: $TEST_TYPE"
+        log_info "Valid types: backend, frontend, e2e, api"
+        exit 1
+        ;;
+esac
+
+if ! command -v docker &> /dev/null; then
+    log_error "Docker is not installed"
+    exit 1
+fi
+
+if command -v docker-compose &> /dev/null; then
+    COMPOSE_CMD=(docker-compose)
+elif docker compose version &> /dev/null; then
+    COMPOSE_CMD=(docker compose)
+else
+    log_error "Docker Compose not found"
+    exit 1
+fi
+
+PROJECT_NAME="${COMPOSE_PROJECT_NAME:-$(basename "$SCRIPT_DIR")}"
+COMPOSE_NETWORK="${PROJECT_NAME}_default"
+
+BACKEND_RESULTS="${SCRIPT_DIR}/backend/.test-results"
+FRONTEND_RESULTS="${SCRIPT_DIR}/frontend/.test-results"
+mkdir -p "$BACKEND_RESULTS" "$FRONTEND_RESULTS"
+
+STARTED_SERVICES=()
+
+track_service() {
+    local service="$1"
+    local existing
+
+    for existing in "${STARTED_SERVICES[@]}"; do
+        if [ "$existing" = "$service" ]; then
+            return 0
+        fi
+    done
+
+    STARTED_SERVICES+=("$service")
+}
+
+service_is_running() {
+    local service="$1"
+    local id
+
+    id=$(${COMPOSE_CMD[@]} ps -q "$service")
+    if [ -z "$id" ]; then
+        return 1
+    fi
+
+    local running
+    running=$(docker inspect -f '{{.State.Running}}' "$id" 2>/dev/null || echo "false")
+    [ "$running" = "true" ]
+}
+
+ensure_service_running() {
+    local service="$1"
+
+    if service_is_running "$service"; then
+        return 0
+    fi
+
+    log_info "Starting $service for tests..."
+    ${COMPOSE_CMD[@]} up -d "$service"
+    track_service "$service"
+}
+
+wait_for_db() {
+    local id
+    id=$(${COMPOSE_CMD[@]} ps -q db)
+    if [ -z "$id" ]; then
+        return 1
+    fi
+
+    for _ in {1..30}; do
+        local status
+        status=$(docker inspect -f '{{.State.Health.Status}}' "$id" 2>/dev/null || echo "")
+        if [ "$status" = "healthy" ]; then
+            return 0
+        fi
+        sleep 2
+    done
+
+    return 1
+}
+
+wait_for_backend() {
+    for _ in {1..30}; do
+        if ${COMPOSE_CMD[@]} exec -T backend python - <<'PY'
+import httpx
+
+try:
+    response = httpx.get("http://localhost:8000/health", timeout=2)
+except Exception:
+    raise SystemExit(1)
+
+if response.status_code != 200:
+    raise SystemExit(1)
+PY
+        then
+            return 0
+        fi
+        sleep 2
+    done
+
+    return 1
+}
+
+wait_for_frontend() {
+    for _ in {1..30}; do
+        if ${COMPOSE_CMD[@]} exec -T backend python - <<'PY'
+import httpx
+
+try:
+    response = httpx.get("http://frontend", timeout=2)
+except Exception:
+    raise SystemExit(1)
+
+if response.status_code != 200:
+    raise SystemExit(1)
+PY
+        then
+            return 0
+        fi
+        sleep 2
+    done
+
+    return 1
+}
+
+stop_started_services() {
+    if [ ${#STARTED_SERVICES[@]} -eq 0 ]; then
+        return 0
+    fi
+
+    log_info "Stopping test services..."
+    ${COMPOSE_CMD[@]} stop "${STARTED_SERVICES[@]}"
+}
+
+trap stop_started_services EXIT
+
+run_backend_tests() {
+    log_info "Running backend tests..."
+    ensure_service_running db
+
+    if ! wait_for_db; then
+        log_error "Database did not become healthy in time"
+        exit 1
+    fi
+
+    ${COMPOSE_CMD[@]} run --rm -T backend pytest | tee "$BACKEND_RESULTS/pytest.txt"
+}
+
+run_frontend_tests() {
+    log_info "Running frontend unit tests..."
+
+    docker run --rm \
+        -v "${SCRIPT_DIR}/frontend:/app" \
+        -w /app \
+        node:18-alpine \
+        sh -lc "npm install && npm run test -- --run" | tee "$FRONTEND_RESULTS/vitest.txt"
+}
+
+run_e2e_tests() {
+    log_info "Running E2E tests..."
+
+    local db_running backend_running frontend_running
+    db_running=$(service_is_running db && echo "true" || echo "false")
+    backend_running=$(service_is_running backend && echo "true" || echo "false")
+    frontend_running=$(service_is_running frontend && echo "true" || echo "false")
+
+    ${COMPOSE_CMD[@]} up -d --build db backend frontend
+
+    if [ "$db_running" = "false" ]; then
+        track_service "db"
+    fi
+    if [ "$backend_running" = "false" ]; then
+        track_service "backend"
+    fi
+    if [ "$frontend_running" = "false" ]; then
+        track_service "frontend"
+    fi
+
+    if ! wait_for_db; then
+        log_error "Database did not become healthy in time"
+        exit 1
+    fi
+    if ! wait_for_backend; then
+        log_error "Backend did not become ready in time"
+        exit 1
+    fi
+    if ! wait_for_frontend; then
+        log_error "Frontend did not become ready in time"
+        exit 1
+    fi
+
+    docker run --rm \
+        -v "${SCRIPT_DIR}/frontend:/app" \
+        -w /app \
+        --network "$COMPOSE_NETWORK" \
+        -e E2E_BASE_URL="http://frontend" \
+        -e API_BASE_URL="http://backend:8000" \
+        mcr.microsoft.com/playwright:v1.41.2-jammy \
+        sh -lc "npm install && npx playwright test --reporter=line" | tee "$FRONTEND_RESULTS/playwright.txt"
+}
+
+run_api_tests() {
+    log_info "Running API health check..."
+    ensure_service_running db
+    ensure_service_running backend
+
+    if ! wait_for_db; then
+        log_error "Database did not become healthy in time"
+        exit 1
+    fi
+    if ! wait_for_backend; then
+        log_error "Backend did not become ready in time"
+        exit 1
+    fi
+
+    ${COMPOSE_CMD[@]} exec -T backend python - <<'PY' | tee "$BACKEND_RESULTS/api.txt"
+import httpx
+
+response = httpx.get("http://localhost:8000/health", timeout=5)
+print(response.status_code)
+print(response.json())
+
+if response.status_code != 200 or response.json() != {"status": "healthy"}:
+    raise SystemExit(1)
+PY
+}
+
+if [ "$TEST_TYPE" = "all" ] || [ "$TEST_TYPE" = "backend" ]; then
+    run_backend_tests
+fi
+
+if [ "$TEST_TYPE" = "all" ] || [ "$TEST_TYPE" = "frontend" ]; then
+    run_frontend_tests
+fi
+
+if [ "$TEST_TYPE" = "all" ] || [ "$TEST_TYPE" = "api" ]; then
+    run_api_tests
+fi
+
+if [ "$TEST_TYPE" = "all" ] || [ "$TEST_TYPE" = "e2e" ]; then
+    run_e2e_tests
+fi
+
+log_info "Tests complete"
