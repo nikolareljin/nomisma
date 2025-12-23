@@ -344,7 +344,7 @@ Each coin is automatically assigned a unique inventory number in the format `NOM
 
 The inventory number is searchable and displayed prominently throughout the application.
 
-<a name="nomisma">
+<a name="nomisma"></a>
 ### Nomisma
 
 Nomisma (νόμισμα) is the Ancient Greek word for money, currency, or a current coin, deriving from nomos (νόμος) meaning "law, custom, or usage," signifying money as something established by convention rather than nature. It specifically referred to official currency, famously the gold Byzantine solidus, and links to the English "numismatics" (study of coins) through Latin.
