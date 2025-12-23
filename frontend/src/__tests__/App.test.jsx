@@ -9,7 +9,7 @@ vi.mock('../api', () => ({
     },
 }));
 
-def renderWithClient(ui) {
+function renderWithClient(ui) {
     const queryClient = new QueryClient({
         defaultOptions: {
             queries: {
