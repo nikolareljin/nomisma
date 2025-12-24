@@ -8,6 +8,26 @@
 
 <img width="861" height="551" alt="image" src="https://github.com/user-attachments/assets/25904dff-ad6a-4f00-9469-e4f344f6978c" />
 
+Scanning of new coins : 
+
+<img width="1920" height="1368" alt="Screenshot 2025-12-24 at 14-57-46 Nomisma - Coin Analysis   Cataloging" src="https://github.com/user-attachments/assets/b620a86d-4e0a-4dee-99ba-f292a915735c" />
+
+Analysis of the Coin using Gemini:
+
+<img width="1920" height="933" alt="Screenshot 2025-12-24 at 14-58-51 Nomisma - Coin Analysis   Cataloging" src="https://github.com/user-attachments/assets/8acfdcbc-d551-43e1-87be-c01432e8769c" />
+
+Results of the scan and recommended pricing:
+
+<img width="1920" height="4260" alt="Screenshot 2025-12-24 at 15-08-10 Nomisma - Coin Analysis   Cataloging" src="https://github.com/user-attachments/assets/17244cf4-c1a8-4d35-8c41-5408af0aba1c" />
+
+Managing the Collections:
+
+<img width="1920" height="933" alt="Screenshot 2025-12-24 at 15-03-41 Nomisma - Coin Analysis   Cataloging" src="https://github.com/user-attachments/assets/1a9755a2-d1f7-42a2-826c-90ba580c3f8c" />
+
+Sending your coin to eBay:
+
+<img width="1920" height="1354" alt="Screenshot 2025-12-24 at 15-02-21 Nomisma - Coin Analysis   Cataloging" src="https://github.com/user-attachments/assets/5f340134-b7c7-4088-82cb-1afa1663cf62" />
+
 
 ## Features
 
