@@ -43,6 +43,32 @@ async def analyze_coin_image(
             }
         
         analysis_data = result["analysis"]
+        valuation_result = None
+        valuation_data = None
+        valuation_text = None
+        valuation_model = None
+
+        coin_data_for_estimate = {
+            "country": analysis_data.get("identification", {}).get("country"),
+            "denomination": analysis_data.get("identification", {}).get("denomination"),
+            "year": analysis_data.get("identification", {}).get("year"),
+            "mint_mark": analysis_data.get("identification", {}).get("mint_mark"),
+            "composition": analysis_data.get("identification", {}).get("composition"),
+            "condition_grade": analysis_data.get("condition", {}).get("grade"),
+            "catalog_number": None,
+            "variety": None,
+            "error_type": None
+        }
+
+        valuation_result = vision_ai_service.estimate_value_from_image(
+            image_path_abs,
+            analysis_data,
+            coin_data_for_estimate
+        )
+        if valuation_result.get("success"):
+            valuation_data = valuation_result.get("valuation")
+            valuation_text = valuation_result.get("formatted_response")
+            valuation_model = valuation_result.get("model_version")
         
         # If coin_id provided, save analysis to database
         if request.coin_id:
@@ -94,17 +120,44 @@ async def analyze_coin_image(
             
             db.commit()
             db.refresh(ai_analysis)
+
+            if valuation_data:
+                valuation = Valuation(
+                    coin_id=request.coin_id,
+                    estimated_value_low=valuation_data.get("estimated_value_low"),
+                    estimated_value_high=valuation_data.get("estimated_value_high"),
+                    estimated_value_avg=valuation_data.get("estimated_value_avg"),
+                    rarity_score=valuation_data.get("rarity_score"),
+                    condition_multiplier=valuation_data.get("condition_multiplier"),
+                    market_demand=valuation_data.get("market_demand"),
+                    confidence_level=valuation_data.get("confidence_level"),
+                    recent_sales_data={
+                        "formatted_response": valuation_text,
+                        "raw_response": valuation_result.get("raw_response") if valuation_result else None,
+                        "model_version": valuation_model
+                    },
+                    valuation_source=f"AI - {valuation_model or 'Gemini'}"
+                )
+                db.add(valuation)
+                db.commit()
+                db.refresh(valuation)
             
             return {
                 "success": True,
                 "analysis": analysis_data,
                 "analysis_id": ai_analysis.id,
-                "coin_updated": True
+                "coin_updated": True,
+                "valuation": valuation_data,
+                "valuation_text": valuation_text,
+                "valuation_model": valuation_model
             }
         
         return {
             "success": True,
-            "analysis": analysis_data
+            "analysis": analysis_data,
+            "valuation": valuation_data,
+            "valuation_text": valuation_text,
+            "valuation_model": valuation_model
         }
         
     except HTTPException:

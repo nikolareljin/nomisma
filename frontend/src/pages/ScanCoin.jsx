@@ -10,9 +10,13 @@ export default function ScanCoin() {
     const [capturedImage, setCapturedImage] = useState(null);
     const [coinData, setCoinData] = useState({});
     const [analysisResult, setAnalysisResult] = useState(null);
+    const [valuationResult, setValuationResult] = useState(null);
+    const [valuationText, setValuationText] = useState('');
     const [selectedCamera, setSelectedCamera] = useState('0');
     const [previewToken, setPreviewToken] = useState('');
     const [previewError, setPreviewError] = useState(false);
+
+    const formatCurrency = (value) => (typeof value === 'number' ? value.toFixed(2) : 'N/A');
 
     // Query cameras
     const { data: camerasData } = useQuery({
@@ -61,6 +65,8 @@ export default function ScanCoin() {
         onSuccess: (response) => {
             if (response.data.success) {
                 setAnalysisResult(response.data.analysis);
+                setValuationResult(response.data.valuation || null);
+                setValuationText(response.data.valuation_text || '');
                 // Pre-fill coin data from AI analysis
                 const ident = response.data.analysis.identification || {};
                 const cond = response.data.analysis.condition || {};
@@ -99,9 +105,6 @@ export default function ScanCoin() {
                     image_path: capturedImage.file_path,
                     coin_id: coinId,
                 });
-
-                // Estimate value
-                await aiAPI.estimateValue(coinId);
             }
 
             return coinId;
@@ -255,6 +258,21 @@ export default function ScanCoin() {
                                 <p className="text-sm text-blue-700">
                                     The form below has been pre-filled with AI-detected information. Please review and edit as needed.
                                 </p>
+                            </div>
+                        )}
+
+                        {valuationResult && (
+                            <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                                <h4 className="font-semibold text-green-900 mb-2">Estimated Value</h4>
+                                <p className="text-lg font-bold text-green-800">
+                                    ${formatCurrency(valuationResult.estimated_value_low)} - $
+                                    {formatCurrency(valuationResult.estimated_value_high)}
+                                </p>
+                                {valuationText && (
+                                    <pre className="mt-3 text-sm text-green-900 whitespace-pre-wrap leading-relaxed">
+                                        {valuationText}
+                                    </pre>
+                                )}
                             </div>
                         )}
 

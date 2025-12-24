@@ -20,6 +20,62 @@ router = APIRouter()
 
 IMAGES_PATH = os.getenv("IMAGES_PATH", "/app/images")
 
+_MAX_LENGTHS = {
+    "inventory_number": 20,
+    "country": 100,
+    "denomination": 100,
+    "mint_mark": 20,
+    "composition": 200,
+    "condition_grade": 50,
+    "condition_notes": 1000,
+    "defects": 1000,
+    "catalog_number": 100,
+    "variety": 100,
+    "error_type": 100,
+    "notes": 2000,
+    "acquisition_source": 200,
+    "location": 200,
+}
+
+
+def _normalize_mint_mark(value: Optional[str]) -> Optional[str]:
+    if value is None:
+        return None
+    cleaned = value.strip()
+    if not cleaned:
+        return None
+    lower = cleaned.lower()
+    if "philadelphia" in lower and ("none" in lower or "no mint" in lower):
+        return "None"
+    return cleaned
+
+
+def _sanitize_coin_payload(data: dict, allow_inventory_default: bool = False) -> dict:
+    sanitized = dict(data)
+    if allow_inventory_default and not sanitized.get("inventory_number"):
+        sanitized.pop("inventory_number", None)
+
+    for key in list(sanitized.keys()):
+        value = sanitized.get(key)
+        if value is None:
+            sanitized.pop(key, None)
+            continue
+        if key == "inventory_number" and isinstance(value, str) and not value.strip():
+            sanitized.pop(key, None)
+            continue
+        if key == "mint_mark":
+            value = _normalize_mint_mark(value)
+            if value is None:
+                sanitized.pop(key, None)
+                continue
+            sanitized[key] = value
+        if key in _MAX_LENGTHS and isinstance(sanitized.get(key), str):
+            max_len = _MAX_LENGTHS[key]
+            if len(sanitized[key]) > max_len:
+                sanitized[key] = sanitized[key][:max_len]
+
+    return sanitized
+
 @router.post("/", response_model=CoinSchema, status_code=201)
 async def create_coin(
     coin: CoinCreate,
@@ -27,7 +83,10 @@ async def create_coin(
     db: Session = Depends(get_db)
 ):
     """Create a new coin record"""
-    coin_data = coin.model_dump()
+    coin_data = _sanitize_coin_payload(
+        coin.model_dump(),
+        allow_inventory_default=True
+    )
     coin_data["user_id"] = current_user.id
     db_coin = Coin(**coin_data)
     db.add(db_coin)
@@ -146,7 +205,9 @@ async def update_coin(
         raise HTTPException(status_code=404, detail="Coin not found")
     
     # Update fields
-    update_data = coin_update.model_dump(exclude_unset=True)
+    update_data = _sanitize_coin_payload(
+        coin_update.model_dump(exclude_unset=True)
+    )
     for field, value in update_data.items():
         setattr(coin, field, value)
     

@@ -50,8 +50,12 @@ async def create_ebay_listing(
         
         if not result.get("success"):
             raise HTTPException(
-                status_code=500,
-                detail=f"Failed to create eBay listing: {result.get('error', 'Unknown error')}"
+                status_code=400,
+                detail={
+                    "message": "Failed to create eBay listing",
+                    "error": result.get("error", "Unknown error"),
+                    "details": result.get("details")
+                }
             )
         
         # Save listing to database

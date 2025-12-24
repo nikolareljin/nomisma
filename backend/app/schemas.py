@@ -111,6 +111,7 @@ class ValuationSchema(BaseModel):
     rarity_score: Optional[int] = None
     market_demand: Optional[str] = None
     confidence_level: Optional[str] = None
+    recent_sales_data: Optional[dict] = None
     
     class Config:
         from_attributes = True

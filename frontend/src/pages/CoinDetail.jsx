@@ -48,6 +48,25 @@ export default function CoinDetail() {
     const latestAnalysis = coinData?.analyses?.[coinData.analyses.length - 1];
     const latestValuation = coinData?.valuations?.[coinData.valuations.length - 1];
     const similar = similarCoins?.data?.similar_coins || [];
+    const pricingNotes = latestValuation?.recent_sales_data?.formatted_response;
+
+    const quickListingData = {
+        listing_title: `${coinData.year} ${coinData.country} ${coinData.denomination} - ${coinData.condition_grade}`,
+        listing_description: `${coinData.country} ${coinData.denomination} from ${coinData.year}. Condition: ${coinData.condition_grade}. ${coinData.notes || ''}`,
+        starting_price: latestValuation?.estimated_value_low || 10,
+        buy_it_now_price: latestValuation?.estimated_value_avg || 20,
+    };
+
+    const quickListMutation = useMutation({
+        mutationFn: () => ebayAPI.createListing({ coin_id: coinData.id, ...quickListingData }),
+        onSuccess: () => {
+            alert('eBay listing created successfully!');
+        },
+        onError: (error) => {
+            const message = error?.response?.data?.detail?.error || error?.response?.data?.detail?.message || 'eBay listing failed.';
+            alert(message);
+        },
+    });
 
     return (
         <div className="space-y-6">
@@ -74,9 +93,16 @@ export default function CoinDetail() {
                                 <Edit2 className="w-4 h-4" />
                                 <span>Edit</span>
                             </button>
-                            <button onClick={() => setShowEbayModal(true)} className="btn btn-gold flex items-center space-x-2">
+                            <button
+                                onClick={() => quickListMutation.mutate()}
+                                className="btn btn-gold flex items-center space-x-2"
+                                disabled={quickListMutation.isPending}
+                            >
                                 <ShoppingCart className="w-4 h-4" />
-                                <span>List on eBay</span>
+                                <span>{quickListMutation.isPending ? 'Listing...' : 'Quick List on eBay'}</span>
+                            </button>
+                            <button onClick={() => setShowEbayModal(true)} className="btn btn-secondary flex items-center space-x-2">
+                                <span>Customize Listing</span>
                             </button>
                         </>
                     ) : (
@@ -247,6 +273,11 @@ export default function CoinDetail() {
                                         <span className="font-medium text-green-900">{latestValuation.market_demand}</span>
                                     </div>
                                 </div>
+                                {pricingNotes && (
+                                    <pre className="mt-4 text-sm text-green-900 whitespace-pre-wrap leading-relaxed">
+                                        {pricingNotes}
+                                    </pre>
+                                )}
                             </div>
                         </div>
                     )}
@@ -328,6 +359,10 @@ function EbayListingModal({ coin, onClose }) {
         onSuccess: () => {
             alert('eBay listing created successfully!');
             onClose();
+        },
+        onError: (error) => {
+            const message = error?.response?.data?.detail?.error || error?.response?.data?.detail?.message || 'eBay listing failed.';
+            alert(message);
         },
     });
 

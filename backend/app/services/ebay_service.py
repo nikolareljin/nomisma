@@ -13,6 +13,16 @@ class EbayService:
         self.cert_id = os.getenv("EBAY_CERT_ID")
         self.token = os.getenv("EBAY_USER_TOKEN")
         self.environment = os.getenv("EBAY_ENVIRONMENT", "sandbox")
+        self.paypal_email = os.getenv("EBAY_PAYPAL_EMAIL")
+        self.postal_code = os.getenv("EBAY_POSTAL_CODE", "95125")
+        self.location = os.getenv("EBAY_LOCATION", "San Jose, CA")
+        self.country = os.getenv("EBAY_COUNTRY", "US")
+        self.site = os.getenv("EBAY_SITE", "US")
+        self.shipping_service = os.getenv("EBAY_SHIPPING_SERVICE", "USPSMedia")
+        self.shipping_cost = os.getenv("EBAY_SHIPPING_COST", "2.50")
+        self.listing_duration = os.getenv("EBAY_LISTING_DURATION", "Days_7")
+        self.dispatch_time_max = os.getenv("EBAY_DISPATCH_TIME_MAX", "3")
+        self.default_condition_id = os.getenv("EBAY_CONDITION_ID", "3000")
         
         self.api = None
         if all([self.app_id, self.dev_id, self.cert_id, self.token]):
@@ -33,28 +43,52 @@ class EbayService:
         
         if not self.api:
             return self._mock_listing(coin_data, listing_data)
+
+        title = (listing_data.get("listing_title") or "").strip()
+        if not title:
+            return {"success": False, "error": "Listing title is required"}
+        if len(title) > 80:
+            title = title[:80]
+
+        description = (listing_data.get("listing_description") or "").strip()
+        if not description:
+            return {"success": False, "error": "Listing description is required"}
+
+        start_price = listing_data.get("starting_price")
+        if start_price is None:
+            return {"success": False, "error": "Starting price is required"}
+
+        buy_it_now_price = listing_data.get("buy_it_now_price")
+        listing_type = "FixedPriceItem" if buy_it_now_price else "Chinese"
+        call_name = "AddFixedPriceItem" if buy_it_now_price else "AddItem"
+
+        payment_methods = listing_data.get("payment_methods") or ["PayPal"]
+        paypal_email = listing_data.get("paypal_email") or self.paypal_email
+        if "PayPal" in payment_methods and not paypal_email:
+            return {
+                "success": False,
+                "error": "EBAY_PAYPAL_EMAIL is required when using PayPal"
+            }
         
         try:
             # Prepare listing
             item = {
                 "Item": {
-                    "Title": listing_data.get("listing_title"),
-                    "Description": listing_data.get("listing_description"),
+                    "Title": title,
+                    "Description": description,
                     "PrimaryCategory": {"CategoryID": "11116"},  # Coins: US category
-                    "StartPrice": listing_data.get("starting_price"),
+                    "StartPrice": start_price,
                     "CategoryMappingAllowed": "true",
-                    "Country": "US",
+                    "Country": self.country,
                     "Currency": "USD",
-                    "DispatchTimeMax": "3",
-                    "ListingDuration": "Days_7",
-                    "ListingType": "FixedPriceItem" if listing_data.get("buy_it_now_price") else "Chinese",
-                    "PaymentMethods": "PayPal",
-                    "PayPalEmailAddress": "seller@example.com",  # Should be configured
-                    "PictureDetails": {
-                        "PictureURL": []  # Add image URLs
-                    },
-                    "PostalCode": "95125",  # Should be configured
+                    "DispatchTimeMax": self.dispatch_time_max,
+                    "ListingDuration": self.listing_duration,
+                    "ListingType": listing_type,
+                    "PaymentMethods": payment_methods,
+                    "PostalCode": self.postal_code,
+                    "Location": self.location,
                     "Quantity": "1",
+                    "ConditionID": listing_data.get("condition_id") or self.default_condition_id,
                     "ReturnPolicy": {
                         "ReturnsAcceptedOption": "ReturnsAccepted",
                         "RefundOption": "MoneyBack",
@@ -65,19 +99,26 @@ class EbayService:
                         "ShippingType": "Flat",
                         "ShippingServiceOptions": {
                             "ShippingServicePriority": "1",
-                            "ShippingService": "USPSMedia",
-                            "ShippingServiceCost": "2.50"
+                            "ShippingService": listing_data.get("shipping_service") or self.shipping_service,
+                            "ShippingServiceCost": listing_data.get("shipping_cost") or self.shipping_cost
                         }
                     },
-                    "Site": "US"
+                    "Site": self.site
                 }
             }
-            
-            if listing_data.get("buy_it_now_price"):
-                item["Item"]["BuyItNowPrice"] = listing_data.get("buy_it_now_price")
+
+            if "PayPal" in payment_methods and paypal_email:
+                item["Item"]["PayPalEmailAddress"] = paypal_email
+
+            if buy_it_now_price:
+                item["Item"]["BuyItNowPrice"] = buy_it_now_price
+
+            image_urls = listing_data.get("image_urls") or []
+            if image_urls:
+                item["Item"]["PictureDetails"] = {"PictureURL": image_urls}
             
             # Add listing
-            response = self.api.execute('AddFixedPriceItem', item)
+            response = self.api.execute(call_name, item)
             
             return {
                 "success": True,
