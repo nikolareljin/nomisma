@@ -25,7 +25,7 @@ async def list_devices():
 
 @router.post("/capture")
 async def capture_image(
-    camera_index: int = 0,
+    camera_index: str = "0",
     image_type: str = "scan"
 ):
     """Capture an image from the microscope"""
@@ -40,10 +40,9 @@ async def capture_image(
         
         save_path = os.path.join(temp_dir, filename)
         
-        # Open camera if needed
-        if not microscope_service.current_camera or not microscope_service.current_camera.isOpened():
-            if not microscope_service.open_camera(camera_index):
-                raise HTTPException(status_code=500, detail="Failed to open camera")
+        # Open selected camera if needed
+        if not microscope_service.ensure_camera(camera_index):
+            raise HTTPException(status_code=500, detail="Failed to open camera")
         
         # Capture image
         success, result = microscope_service.capture_image(save_path)
@@ -63,14 +62,13 @@ async def capture_image(
 
 @router.get("/preview")
 async def get_preview(
-    camera_index: int = 0
+    camera_index: str = "0"
 ):
     """Get a preview frame from the microscope"""
     try:
-        # Open camera if needed
-        if not microscope_service.current_camera or not microscope_service.current_camera.isOpened():
-            if not microscope_service.open_camera(camera_index):
-                raise HTTPException(status_code=500, detail="Failed to open camera")
+        # Open selected camera if needed
+        if not microscope_service.ensure_camera(camera_index):
+            raise HTTPException(status_code=500, detail="Failed to open camera")
         
         # Get frame
         frame = microscope_service.get_frame()
@@ -94,7 +92,7 @@ async def get_preview(
 
 @router.post("/camera/{camera_index}/open")
 async def open_camera(
-    camera_index: int
+    camera_index: str
 ):
     """Open a specific camera"""
     try:

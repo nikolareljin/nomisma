@@ -156,6 +156,7 @@ nomisma/
 ├── images/                  # Stored coin images
 ├── docker-compose.yml       # Container orchestration
 ├── docker-compose.microscope.yml # Optional microscope services
+├── log                      # Stream service logs
 ├── start                    # Start services
 ├── stop                     # Stop services
 ├── status                   # Service status
@@ -210,6 +211,7 @@ npm run dev
 ./test -t backend   # backend pytest
 ./test -t frontend  # frontend unit tests
 ./test -t api       # backend /health check
+./test -t api -i /path/to/image.jpg  # Gemini analysis
 ./test -t e2e       # Playwright E2E
 ```
 
@@ -253,6 +255,7 @@ docker-compose up -d
 - Verify camera permissions
 - Restart Docker containers
 - See [docs/MICROSCOPE_SETUP.md](docs/MICROSCOPE_SETUP.md)
+- Check logs: `./log -t backend`
 
 ### AI Analysis Fails
 
@@ -291,6 +294,14 @@ Check application status
 ```bash
 ./status          # Show service status
 ./status -h       # Show help
+```
+
+### log
+Stream logs for a specific service
+```bash
+./log -t backend  # Follow backend logs
+./log -t frontend # Follow frontend logs
+./log -h          # Show help
 ```
 
 ### update

@@ -2,4 +2,17 @@ services:
   backend:
     devices:
       - /dev/video0:/dev/video0  # Microscope USB camera access
+      - /dev/video1:/dev/video1
+      - /dev/video2:/dev/video2
+      - /dev/video3:/dev/video3
+      - /dev/video4:/dev/video4
+      - /dev/video5:/dev/video5
+      - /dev/media0:/dev/media0
+      - /dev/media1:/dev/media1
+      - /dev/media2:/dev/media2
+      - /dev/media3:/dev/media3
+      - /dev/media4:/dev/media4
+      - /dev/media5:/dev/media5
+    group_add:
+      - video
     privileged: true  # Required for camera access

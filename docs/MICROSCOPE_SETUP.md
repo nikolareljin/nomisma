@@ -19,10 +19,11 @@ However, most USB microscopes should work, including:
 ### 1. Physical Connection
 
 1. Connect the microscope to your computer via USB
-2. On Linux, the device should appear as `/dev/video0` (or `/dev/video1`, `/dev/video2`, etc.)
+2. On Linux, the device should appear as `/dev/video0` (or `/dev/video1`, `/dev/video2`, etc.). Some devices also expose `/dev/media*` nodes.
 3. Verify the connection:
    ```bash
    ls -l /dev/video*
+   ls -l /dev/media*
    ```
 
 ### 2. Permissions (Linux)
@@ -59,6 +60,7 @@ services:
   backend:
     devices:
       - /dev/video0:/dev/video0
+      - /dev/media0:/dev/media0
     privileged: true
 ```
 
@@ -77,7 +79,9 @@ services:
   backend:
     devices:
       - /dev/video1:/dev/video1  # Change to your device
+      - /dev/media1:/dev/media1
 ```
+Some microscopes expose multiple `/dev/video*` nodes for the same device. In that case, try the alternate node listed by `v4l2-ctl --list-devices`.
 
 ## Application Setup
 
@@ -144,7 +148,7 @@ For best AI analysis results:
    ```
 4. Check Docker logs:
    ```bash
-   docker-compose logs backend
+   ./log -t backend
    ```
 
 ### Permission Denied
@@ -243,7 +247,7 @@ v4l2-ctl -d /dev/video0 --list-ctrls
 If you continue to experience issues:
 
 1. Check the main [README.md](../README.md) troubleshooting section
-2. Review Docker logs: `docker-compose logs backend`
+2. Review Docker logs: `./log -t backend`
 3. Test camera outside Docker: `ffplay /dev/video0`
 4. Verify OpenCV installation: `docker-compose exec backend python -c "import cv2; print(cv2.__version__)"`
 
