@@ -40,25 +40,26 @@ export default function CoinDetail() {
         },
     });
 
-    if (isLoading) {
-        return <div className="text-center py-12">Loading...</div>;
-    }
-
     const coinData = coin?.data;
     const latestAnalysis = coinData?.analyses?.[coinData.analyses.length - 1];
     const latestValuation = coinData?.valuations?.[coinData.valuations.length - 1];
     const similar = similarCoins?.data?.similar_coins || [];
     const pricingNotes = latestValuation?.recent_sales_data?.formatted_response;
 
-    const quickListingData = {
+    const quickListingData = coinData ? {
         listing_title: `${coinData.year} ${coinData.country} ${coinData.denomination} - ${coinData.condition_grade}`,
         listing_description: `${coinData.country} ${coinData.denomination} from ${coinData.year}. Condition: ${coinData.condition_grade}. ${coinData.notes || ''}`,
         starting_price: latestValuation?.estimated_value_low || 10,
         buy_it_now_price: latestValuation?.estimated_value_avg || 20,
-    };
+    } : null;
 
     const quickListMutation = useMutation({
-        mutationFn: () => ebayAPI.createListing({ coin_id: coinData.id, ...quickListingData }),
+        mutationFn: () => {
+            if (!coinData || !quickListingData) {
+                return Promise.reject(new Error('Coin data unavailable for listing.'));
+            }
+            return ebayAPI.createListing({ coin_id: coinData.id, ...quickListingData });
+        },
         onSuccess: () => {
             alert('eBay listing created successfully!');
         },
@@ -67,6 +68,10 @@ export default function CoinDetail() {
             alert(message);
         },
     });
+
+    if (isLoading) {
+        return <div className="text-center py-12">Loading...</div>;
+    }
 
     return (
         <div className="space-y-6">
