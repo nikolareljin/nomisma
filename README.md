@@ -211,6 +211,7 @@ npm run dev
 ./test -t backend   # backend pytest
 ./test -t frontend  # frontend unit tests
 ./test -t api       # backend /health check
+./test -t api -i /path/to/image.jpg  # Gemini analysis
 ./test -t e2e       # Playwright E2E
 ```
 
