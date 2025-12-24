@@ -1,13 +1,15 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from uuid import UUID
+import asyncio
 import os
+from typing import Optional
 
 from ..database import get_db
 from ..models import Coin, AIAnalysis, Valuation, User
 from ..schemas import AnalyzeImageRequest
 from ..services.vision_ai import vision_ai_service
-from ..auth import get_current_user
+from ..auth import get_optional_user
 
 router = APIRouter()
 
@@ -16,19 +18,35 @@ IMAGES_PATH = os.getenv("IMAGES_PATH", "/app/images")
 @router.post("/analyze")
 async def analyze_coin_image(
     request: AnalyzeImageRequest,
-    current_user: User = Depends(get_current_user),
+    current_user: Optional[User] = Depends(get_optional_user),
     db: Session = Depends(get_db)
 ):
     """Analyze a coin image using AI"""
     try:
         # Construct full image path
         image_path = os.path.join(IMAGES_PATH, request.image_path)
+        images_root = os.path.abspath(IMAGES_PATH)
+        image_path_abs = os.path.abspath(image_path)
+
+        if os.path.commonpath([image_path_abs, images_root]) != images_root:
+            raise HTTPException(status_code=400, detail="Invalid image path")
         
-        if not os.path.exists(image_path):
+        if not os.path.exists(image_path_abs):
             raise HTTPException(status_code=404, detail="Image not found")
+
+        if request.coin_id and not current_user:
+            raise HTTPException(status_code=401, detail="Authentication required for coin analysis")
         
-        # Perform AI analysis
-        result = vision_ai_service.analyze_coin(image_path)
+        if request.coin_id:
+            coin = db.query(Coin).filter(
+                Coin.id == request.coin_id,
+                Coin.user_id == current_user.id
+            ).first()
+            if not coin:
+                raise HTTPException(status_code=404, detail="Coin not found")
+
+        # Perform AI analysis (may take a long time)
+        result = await asyncio.to_thread(vision_ai_service.analyze_coin, image_path_abs)
         
         if not result.get("success"):
             return {
@@ -40,13 +58,6 @@ async def analyze_coin_image(
         
         # If coin_id provided, save analysis to database
         if request.coin_id:
-            coin = db.query(Coin).filter(
-                Coin.id == request.coin_id,
-                Coin.user_id == current_user.id
-            ).first()
-            if not coin:
-                raise HTTPException(status_code=404, detail="Coin not found")
-            
             # Create AI analysis record
             ai_analysis = AIAnalysis(
                 coin_id=request.coin_id,

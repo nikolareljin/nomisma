@@ -34,7 +34,7 @@ export const microscopeAPI = {
 
 // AI API
 export const aiAPI = {
-    analyze: (data) => api.post('/api/ai/analyze', data),
+    analyze: (data) => api.post('/api/ai/analyze', data, { timeout: 0 }),
     estimateValue: (coinId) => api.post(`/api/ai/estimate-value/${coinId}`),
     findSimilar: (coinId, limit = 5) => api.get(`/api/ai/similar/${coinId}`, { params: { limit } }),
 };
