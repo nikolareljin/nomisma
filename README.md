@@ -26,7 +26,7 @@ Managing the Collections:
 
 Sending your coin to eBay:
 
-<img width="1920" height="1354" alt="Screenshot 2025-12-24 at 15-02-21 Nomisma - Coin Analysis   Cataloging" src="https://github.com/user-attachments/assets/5f340134-b7c7-4088-82cb-1afa1663cf62" />
+<img width="1920" height="933" alt="Screenshot 2025-12-24 at 15-21-29 Nomisma - Coin Analysis   Cataloging" src="https://github.com/user-attachments/assets/a54baed3-35ca-498d-8517-7fce8973f788" />
 
 
 ## Features
