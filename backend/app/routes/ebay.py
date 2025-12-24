@@ -6,14 +6,14 @@ from ..database import get_db
 from ..models import Coin, EbayListing, User
 from ..schemas import EbayListingCreate, EbayListingSchema
 from ..services.ebay_service import ebay_service
-from ..auth import get_current_user
+from ..auth import get_request_user
 
 router = APIRouter()
 
 @router.post("/list", response_model=EbayListingSchema)
 async def create_ebay_listing(
     listing: EbayListingCreate,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_request_user),
     db: Session = Depends(get_db)
 ):
     """Create an eBay listing for a coin"""
@@ -85,7 +85,7 @@ async def create_ebay_listing(
 @router.get("/listings/{coin_id}")
 async def get_coin_listings(
     coin_id: UUID,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_request_user),
     db: Session = Depends(get_db)
 ):
     """Get all eBay listings for a coin"""
@@ -111,7 +111,7 @@ async def get_coin_listings(
 @router.get("/status/{item_id}")
 async def get_listing_status(
     item_id: str,
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_request_user)
 ):
     """Get the status of an eBay listing"""
     try:

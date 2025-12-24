@@ -1,13 +1,14 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from uuid import UUID
+import asyncio
 import os
 
 from ..database import get_db
 from ..models import Coin, AIAnalysis, Valuation, User
 from ..schemas import AnalyzeImageRequest
 from ..services.vision_ai import vision_ai_service
-from ..auth import get_current_user
+from ..auth import get_request_user
 
 router = APIRouter()
 
@@ -16,19 +17,24 @@ IMAGES_PATH = os.getenv("IMAGES_PATH", "/app/images")
 @router.post("/analyze")
 async def analyze_coin_image(
     request: AnalyzeImageRequest,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_request_user),
     db: Session = Depends(get_db)
 ):
     """Analyze a coin image using AI"""
     try:
         # Construct full image path
         image_path = os.path.join(IMAGES_PATH, request.image_path)
-        
-        if not os.path.exists(image_path):
+        images_root = os.path.abspath(IMAGES_PATH)
+        image_path_abs = os.path.abspath(image_path)
+
+        if os.path.commonpath([image_path_abs, images_root]) != images_root:
+            raise HTTPException(status_code=400, detail="Invalid image path")
+
+        if not os.path.exists(image_path_abs):
             raise HTTPException(status_code=404, detail="Image not found")
-        
-        # Perform AI analysis
-        result = vision_ai_service.analyze_coin(image_path)
+
+        # Perform AI analysis (may take a long time)
+        result = await asyncio.to_thread(vision_ai_service.analyze_coin, image_path_abs)
         
         if not result.get("success"):
             return {
@@ -109,7 +115,7 @@ async def analyze_coin_image(
 @router.post("/estimate-value/{coin_id}")
 async def estimate_coin_value(
     coin_id: UUID,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_request_user),
     db: Session = Depends(get_db)
 ):
     """Estimate the value of a coin based on AI analysis"""
@@ -154,8 +160,25 @@ async def estimate_coin_value(
             "rarity": latest_analysis.raw_response.get("analysis", {}).get("rarity_estimate") if latest_analysis.raw_response else None
         }
         
+        primary_image = next((img.file_path for img in coin.images if img.is_primary), None)
+        if not primary_image and coin.images:
+            primary_image = coin.images[0].file_path
+
+        if not primary_image:
+            raise HTTPException(status_code=400, detail="No coin image available for valuation")
+
+        image_path = os.path.join(IMAGES_PATH, primary_image)
+        images_root = os.path.abspath(IMAGES_PATH)
+        image_path_abs = os.path.abspath(image_path)
+
+        if os.path.commonpath([image_path_abs, images_root]) != images_root:
+            raise HTTPException(status_code=400, detail="Invalid image path")
+
+        if not os.path.exists(image_path_abs):
+            raise HTTPException(status_code=404, detail="Image not found")
+
         # Get valuation estimate
-        result = vision_ai_service.estimate_value(analysis_data, coin_data)
+        result = vision_ai_service.estimate_value_from_image(image_path_abs, analysis_data, coin_data)
         
         if not result.get("success"):
             return {
@@ -175,7 +198,12 @@ async def estimate_coin_value(
             condition_multiplier=valuation_data.get("condition_multiplier"),
             market_demand=valuation_data.get("market_demand"),
             confidence_level=valuation_data.get("confidence_level"),
-            valuation_source="AI - Gemini Vision"
+            recent_sales_data={
+                "formatted_response": result.get("formatted_response"),
+                "raw_response": result.get("raw_response"),
+                "model_version": result.get("model_version")
+            },
+            valuation_source=f"AI - {result.get('model_version') or 'Gemini'}"
         )
         
         db.add(valuation)
@@ -185,7 +213,10 @@ async def estimate_coin_value(
         return {
             "success": True,
             "valuation": valuation_data,
-            "valuation_id": valuation.id
+            "valuation_id": valuation.id,
+            "formatted_response": result.get("formatted_response"),
+            "raw_response": result.get("raw_response"),
+            "model_version": result.get("model_version")
         }
         
     except HTTPException:
@@ -197,7 +228,7 @@ async def estimate_coin_value(
 async def find_similar_coins(
     coin_id: UUID,
     limit: int = 5,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_request_user),
     db: Session = Depends(get_db)
 ):
     """Find similar coins based on characteristics"""

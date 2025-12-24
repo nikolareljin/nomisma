@@ -11,9 +11,9 @@ const api = axios.create({
 
 // Coins API
 export const coinsAPI = {
-    list: (params) => api.get('/api/coins', { params }),
+    list: (params) => api.get('/api/coins/', { params }),
     get: (id) => api.get(`/api/coins/${id}`),
-    create: (data) => api.post('/api/coins', data),
+    create: (data) => api.post('/api/coins/', data),
     update: (id, data) => api.put(`/api/coins/${id}`, data),
     delete: (id) => api.delete(`/api/coins/${id}`),
     uploadImage: (id, formData) => api.post(`/api/coins/${id}/images`, formData, {
@@ -34,7 +34,7 @@ export const microscopeAPI = {
 
 // AI API
 export const aiAPI = {
-    analyze: (data) => api.post('/api/ai/analyze', data),
+    analyze: (data) => api.post('/api/ai/analyze', data, { timeout: 0 }),
     estimateValue: (coinId) => api.post(`/api/ai/estimate-value/${coinId}`),
     findSimilar: (coinId, limit = 5) => api.get(`/api/ai/similar/${coinId}`, { params: { limit } }),
 };

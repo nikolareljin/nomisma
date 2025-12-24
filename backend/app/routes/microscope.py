@@ -40,10 +40,9 @@ async def capture_image(
         
         save_path = os.path.join(temp_dir, filename)
         
-        # Open camera if needed
-        if not microscope_service.current_camera or not microscope_service.current_camera.isOpened():
-            if not microscope_service.open_camera(camera_index):
-                raise HTTPException(status_code=500, detail="Failed to open camera")
+        # Open selected camera if needed
+        if not microscope_service.ensure_camera(camera_index):
+            raise HTTPException(status_code=500, detail="Failed to open camera")
         
         # Capture image
         success, result = microscope_service.capture_image(save_path)
@@ -67,10 +66,9 @@ async def get_preview(
 ):
     """Get a preview frame from the microscope"""
     try:
-        # Open camera if needed
-        if not microscope_service.current_camera or not microscope_service.current_camera.isOpened():
-            if not microscope_service.open_camera(camera_index):
-                raise HTTPException(status_code=500, detail="Failed to open camera")
+        # Open selected camera if needed
+        if not microscope_service.ensure_camera(camera_index):
+            raise HTTPException(status_code=500, detail="Failed to open camera")
         
         # Get frame
         frame = microscope_service.get_frame()

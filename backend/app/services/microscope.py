@@ -17,6 +17,16 @@ class MicroscopeService:
             return cv2.CAP_V4L2
         return cv2.CAP_ANY
 
+    def _normalize_camera_index(self, camera_index: Union[int, str]) -> Tuple[str, Union[int, str]]:
+        if isinstance(camera_index, int):
+            return ("index", camera_index)
+        if isinstance(camera_index, str) and camera_index.isdigit():
+            return ("index", int(camera_index))
+        return ("path", str(camera_index))
+
+    def _camera_matches(self, camera_index: Union[int, str]) -> bool:
+        return self._normalize_camera_index(self.camera_index) == self._normalize_camera_index(camera_index)
+
     def _open_capture(self, camera_index: Union[int, str]) -> Optional[cv2.VideoCapture]:
         backend = self._select_backend()
         candidates: List[Union[int, str]] = []
@@ -193,6 +203,16 @@ class MicroscopeService:
 
         self.current_camera = None
         return False
+
+    def ensure_camera(self, camera_index: Union[int, str] = 0) -> bool:
+        """Ensure the requested camera is open and active."""
+        if (
+            self.current_camera is None
+            or not self.current_camera.isOpened()
+            or not self._camera_matches(camera_index)
+        ):
+            return self.open_camera(camera_index)
+        return True
 
     def _resolve_media_device(self, media_path: str) -> Optional[str]:
         for node in self._linked_video_nodes(media_path):

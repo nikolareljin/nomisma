@@ -14,7 +14,7 @@ from ..schemas import (
     CoinSearchParams
 )
 from ..services.vision_ai import vision_ai_service
-from ..auth import get_current_user
+from ..auth import get_request_user
 
 router = APIRouter()
 
@@ -23,7 +23,7 @@ IMAGES_PATH = os.getenv("IMAGES_PATH", "/app/images")
 @router.post("/", response_model=CoinSchema, status_code=201)
 async def create_coin(
     coin: CoinCreate,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_request_user),
     db: Session = Depends(get_db)
 ):
     """Create a new coin record"""
@@ -48,7 +48,7 @@ async def list_coins(
     search: Optional[str] = None,
     sort_by: str = "created_at",
     sort_order: str = "desc",
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_request_user),
     db: Session = Depends(get_db)
 ):
     """List coins with optional filtering and search"""
@@ -118,7 +118,7 @@ async def list_coins(
 @router.get("/{coin_id}", response_model=CoinSchema)
 async def get_coin(
     coin_id: UUID,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_request_user),
     db: Session = Depends(get_db)
 ):
     """Get a specific coin by ID"""
@@ -134,7 +134,7 @@ async def get_coin(
 async def update_coin(
     coin_id: UUID,
     coin_update: CoinUpdate,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_request_user),
     db: Session = Depends(get_db)
 ):
     """Update a coin record"""
@@ -157,7 +157,7 @@ async def update_coin(
 @router.delete("/{coin_id}", status_code=204)
 async def delete_coin(
     coin_id: UUID,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_request_user),
     db: Session = Depends(get_db)
 ):
     """Delete a coin record"""
@@ -184,7 +184,7 @@ async def upload_coin_image(
     file: UploadFile = File(...),
     image_type: str = "obverse",
     is_primary: bool = False,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_request_user),
     db: Session = Depends(get_db)
 ):
     """Upload an image for a coin"""
@@ -240,7 +240,7 @@ async def upload_coin_image(
 @router.get("/{coin_id}/stats")
 async def get_coin_stats(
     coin_id: UUID,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_request_user),
     db: Session = Depends(get_db)
 ):
     """Get statistics for a coin"""
