@@ -328,7 +328,7 @@ Each coin receives a unique inventory number:
 
 ### Data Not Saving
 
-- Check backend logs: `docker-compose logs backend`
+- Check backend logs: `./log -t backend`
 - Verify database connection
 - Ensure sufficient disk space
 - Check for error messages
@@ -345,7 +345,7 @@ Each coin receives a unique inventory number:
 ## Getting Help
 
 - **Documentation**: Check docs folder for detailed guides
-- **Logs**: Review application logs for error messages
+- **Logs**: Review application logs for error messages (`./log -t backend`)
 - **Community**: Join numismatic forums for coin-specific questions
 - **Support**: Open issues on GitHub for bugs or feature requests
 

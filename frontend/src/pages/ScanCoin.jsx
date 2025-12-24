@@ -10,7 +10,9 @@ export default function ScanCoin() {
     const [capturedImage, setCapturedImage] = useState(null);
     const [coinData, setCoinData] = useState({});
     const [analysisResult, setAnalysisResult] = useState(null);
-    const [selectedCamera, setSelectedCamera] = useState(0);
+    const [selectedCamera, setSelectedCamera] = useState('0');
+    const [previewToken, setPreviewToken] = useState('');
+    const [previewError, setPreviewError] = useState(false);
 
     // Query cameras
     const { data: camerasData } = useQuery({
@@ -24,12 +26,23 @@ export default function ScanCoin() {
         if (!cameras.length) {
             return;
         }
-        const selectedExists = cameras.some((cam) => cam.index === selectedCamera);
-        if (!selectedExists || cameras.find((cam) => cam.index === selectedCamera && cam.available === false)) {
+        const selectedExists = cameras.some((cam) => String(cam.index) === selectedCamera);
+        if (!selectedExists || cameras.find((cam) => String(cam.index) === selectedCamera && cam.available === false)) {
             const firstAvailable = cameras.find((cam) => cam.available !== false) || cameras[0];
-            setSelectedCamera(firstAvailable.index);
+            setSelectedCamera(String(firstAvailable.index));
         }
     }, [cameras, selectedCamera]);
+
+    useEffect(() => {
+        if (!selectedCamera) {
+            return;
+        }
+        setPreviewError(false);
+        const interval = setInterval(() => {
+            setPreviewToken(String(Date.now()));
+        }, 750);
+        return () => clearInterval(interval);
+    }, [selectedCamera]);
 
     // Capture mutation
     const captureMutation = useMutation({
@@ -154,7 +167,7 @@ export default function ScanCoin() {
                             <label className="label">Select Camera</label>
                             <select
                                 value={selectedCamera}
-                                onChange={(e) => setSelectedCamera(Number(e.target.value))}
+                                onChange={(e) => setSelectedCamera(e.target.value)}
                                 className="input"
                             >
                                 {cameras.length === 0 && (
@@ -163,7 +176,7 @@ export default function ScanCoin() {
                                     </option>
                                 )}
                                 {cameras.map((cam) => (
-                                    <option key={cam.index} value={cam.index} disabled={cam.available === false}>
+                                    <option key={cam.index} value={String(cam.index)} disabled={cam.available === false}>
                                         {cam.name} - {cam.resolution}{cam.available === false ? ' (unavailable)' : ''}
                                     </option>
                                 ))}
@@ -174,18 +187,19 @@ export default function ScanCoin() {
                             {cameras.length > 0 ? (
                                 <>
                                     <img
-                                        src={microscopeAPI.preview(selectedCamera)}
+                                        src={microscopeAPI.preview(selectedCamera, previewToken)}
                                         alt="Microscope preview"
                                         className="max-w-full max-h-full"
                                         onError={(e) => {
-                                            e.target.style.display = 'none';
-                                            e.target.nextSibling.style.display = 'flex';
+                                            setPreviewError(true);
                                         }}
                                     />
-                                    <div className="flex-col items-center justify-center text-gray-400" style={{ display: 'none' }}>
-                                        <Camera className="w-16 h-16 mb-4" />
-                                        <p>Camera preview unavailable</p>
-                                    </div>
+                                    {previewError && (
+                                        <div className="flex-col items-center justify-center text-gray-400 flex">
+                                            <Camera className="w-16 h-16 mb-4" />
+                                            <p>Camera preview unavailable</p>
+                                        </div>
+                                    )}
                                 </>
                             ) : (
                                 <div className="flex-col items-center justify-center text-gray-400 flex">

@@ -1,4 +1,6 @@
-import google.generativeai as genai
+from google import genai
+from google.genai import types
+import io
 import os
 from typing import Dict, Any, Optional
 from PIL import Image
@@ -10,20 +12,22 @@ class VisionAIService:
     def __init__(self):
         api_key = os.getenv("GEMINI_API_KEY")
         if api_key:
-            genai.configure(api_key=api_key)
-            self.model = genai.GenerativeModel('gemini-1.5-flash')
+            self.client = genai.Client(api_key=api_key)
+            self.model_name = "gemini-1.5-flash"
         else:
-            self.model = None
+            self.client = None
+            self.model_name = None
     
     def analyze_coin(self, image_path: str) -> Dict[str, Any]:
         """Analyze a coin image and extract detailed information"""
         
-        if not self.model:
+        if not self.client:
             return self._mock_analysis()
         
         try:
             # Load image
             img = Image.open(image_path)
+            image_part = self._image_part(img)
             
             # Comprehensive prompt for coin analysis
             prompt = """Analyze this coin image in detail and provide the following information in JSON format:
@@ -68,10 +72,15 @@ class VisionAIService:
 Provide only the JSON response, no additional text."""
 
             # Generate analysis
-            response = self.model.generate_content([prompt, img])
+            response = self.client.models.generate_content(
+                model=self.model_name,
+                contents=[prompt, image_part],
+            )
             
             # Parse JSON response
-            response_text = response.text.strip()
+            response_text = (response.text or "").strip()
+            if not response_text:
+                raise ValueError("Empty response from Gemini API")
             # Remove markdown code blocks if present
             if response_text.startswith("```json"):
                 response_text = response_text[7:]
@@ -85,8 +94,8 @@ Provide only the JSON response, no additional text."""
             return {
                 "success": True,
                 "analysis": analysis,
-                "model_version": "gemini-1.5-flash",
-                "raw_response": response.text
+                "model_version": self.model_name,
+                "raw_response": response.text or ""
             }
             
         except Exception as e:
@@ -100,7 +109,7 @@ Provide only the JSON response, no additional text."""
     def estimate_value(self, analysis: Dict[str, Any], coin_data: Dict[str, Any]) -> Dict[str, Any]:
         """Estimate coin value based on analysis and market data"""
         
-        if not self.model:
+        if not self.client:
             return self._mock_valuation()
         
         try:
@@ -126,8 +135,13 @@ Provide a value estimate in this JSON format:
 
 Provide only the JSON response."""
 
-            response = self.model.generate_content(prompt)
-            response_text = response.text.strip()
+            response = self.client.models.generate_content(
+                model=self.model_name,
+                contents=[prompt],
+            )
+            response_text = (response.text or "").strip()
+            if not response_text:
+                raise ValueError("Empty response from Gemini API")
             
             # Clean response
             if response_text.startswith("```json"):
@@ -151,6 +165,16 @@ Provide only the JSON response."""
                 "error": str(e),
                 "valuation": self._mock_valuation()["valuation"]
             }
+
+    def _image_part(self, img: Image.Image) -> types.Part:
+        """Convert a PIL image to a Gemini image part."""
+        img_format = img.format if img.format in Image.MIME else "PNG"
+        mime_type = Image.MIME.get(img_format, "image/png")
+        buffer = io.BytesIO()
+        if img_format.upper() in ("JPEG", "JPG") and img.mode not in ("RGB", "L"):
+            img = img.convert("RGB")
+        img.save(buffer, format=img_format)
+        return types.Part.from_bytes(data=buffer.getvalue(), mime_type=mime_type)
     
     def _mock_analysis(self) -> Dict[str, Any]:
         """Mock analysis for testing without API key"""

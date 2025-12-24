@@ -25,7 +25,7 @@ async def list_devices():
 
 @router.post("/capture")
 async def capture_image(
-    camera_index: int = 0,
+    camera_index: str = "0",
     image_type: str = "scan"
 ):
     """Capture an image from the microscope"""
@@ -63,7 +63,7 @@ async def capture_image(
 
 @router.get("/preview")
 async def get_preview(
-    camera_index: int = 0
+    camera_index: str = "0"
 ):
     """Get a preview frame from the microscope"""
     try:
@@ -94,7 +94,7 @@ async def get_preview(
 
 @router.post("/camera/{camera_index}/open")
 async def open_camera(
-    camera_index: int
+    camera_index: str
 ):
     """Open a specific camera"""
     try:
