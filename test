@@ -207,7 +207,7 @@ run_backend_tests() {
         exit 1
     fi
 
-    ${COMPOSE_CMD[@]} run --rm -T backend pytest | tee "$BACKEND_RESULTS/pytest.txt"
+    ${COMPOSE_CMD[@]} run --rm -T --build backend python -m pytest | tee "$BACKEND_RESULTS/pytest.txt"
 }
 
 run_frontend_tests() {
