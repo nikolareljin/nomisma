@@ -43,6 +43,13 @@ if ! command -v docker >/dev/null 2>&1; then
     exit 1
 fi
 
+if ! docker info >/dev/null 2>&1; then
+    echo "Docker is installed but not running or not accessible."
+    echo "Start the Docker daemon and ensure your user has permission to run Docker."
+    open_url "https://docs.docker.com/config/daemon/start/"
+    exit 1
+fi
+
 if docker compose version >/dev/null 2>&1; then
     : # Docker Compose plugin is available.
 elif command -v docker-compose >/dev/null 2>&1; then

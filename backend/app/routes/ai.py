@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 from uuid import UUID
 import asyncio
 import os
+from typing import Optional
 
 from ..database import get_db
 from ..models import Coin, AIAnalysis, Valuation, User
