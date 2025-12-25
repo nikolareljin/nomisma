@@ -105,9 +105,9 @@ The application will automatically detect available cameras. Select your microsc
 - Adjust the microscope's focus wheel for a clear image
 - Ensure adequate lighting (most microscopes have built-in LED lights)
 
-### 5. Capture Image
+### 5. Capture Images (Both Sides)
 
-Click the "Capture Image" button to take a photo of the coin.
+Capture the obverse first, then follow the prompt to scan the reverse. If the app flags the image as blurry or poorly lit, rescan the same side before proceeding.
 
 ## Optimal Image Capture
 

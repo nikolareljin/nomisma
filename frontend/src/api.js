@@ -25,7 +25,8 @@ export const coinsAPI = {
 // Microscope API
 export const microscopeAPI = {
     listDevices: () => api.get('/api/microscope/devices'),
-    capture: (cameraIndex = 0) => api.post('/api/microscope/capture', null, { params: { camera_index: cameraIndex } }),
+    capture: (cameraIndex = 0, sideHint = '') =>
+        api.post('/api/microscope/capture', null, { params: { camera_index: cameraIndex, side_hint: sideHint } }),
     preview: (cameraIndex = 0, cacheBust = '') =>
         `${API_BASE_URL}/api/microscope/preview?camera_index=${cameraIndex}${cacheBust ? `&t=${cacheBust}` : ''}`,
     openCamera: (cameraIndex) => api.post(`/api/microscope/camera/${cameraIndex}/open`),

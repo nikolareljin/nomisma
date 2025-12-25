@@ -14,6 +14,25 @@ router = APIRouter()
 
 IMAGES_PATH = os.getenv("IMAGES_PATH", "/app/images")
 
+_COIN_FIELD_LIMITS = {
+    "country": 100,
+    "denomination": 100,
+    "mint_mark": 20,
+    "composition": 200,
+    "condition_grade": 50,
+}
+
+
+def _truncate(value: Optional[str], max_len: int) -> Optional[str]:
+    if value is None:
+        return None
+    value = value.strip()
+    if not value:
+        return None
+    if len(value) > max_len:
+        return value[:max_len]
+    return value
+
 @router.post("/analyze")
 async def analyze_coin_image(
     request: AnalyzeImageRequest,
@@ -104,19 +123,26 @@ async def analyze_coin_image(
             # Update coin with identified information
             if analysis_data.get("identification"):
                 ident = analysis_data["identification"]
-                if not coin.country and ident.get("country"):
-                    coin.country = ident["country"]
-                if not coin.denomination and ident.get("denomination"):
-                    coin.denomination = ident["denomination"]
-                if not coin.year and ident.get("year"):
-                    coin.year = ident["year"]
-                if not coin.mint_mark and ident.get("mint_mark"):
-                    coin.mint_mark = ident["mint_mark"]
-                if not coin.composition and ident.get("composition"):
-                    coin.composition = ident["composition"]
+                country = _truncate(ident.get("country"), _COIN_FIELD_LIMITS["country"])
+                denomination = _truncate(ident.get("denomination"), _COIN_FIELD_LIMITS["denomination"])
+                mint_mark = _truncate(ident.get("mint_mark"), _COIN_FIELD_LIMITS["mint_mark"])
+                composition = _truncate(ident.get("composition"), _COIN_FIELD_LIMITS["composition"])
+
+                if country and (coin.country is None or not str(coin.country).strip()):
+                    coin.country = country
+                if denomination and (coin.denomination is None or not str(coin.denomination).strip()):
+                    coin.denomination = denomination
+                if ident.get("year") and coin.year is None:
+                    coin.year = ident.get("year")
+                if mint_mark and (coin.mint_mark is None or not str(coin.mint_mark).strip()):
+                    coin.mint_mark = mint_mark
+                if composition and (coin.composition is None or not str(coin.composition).strip()):
+                    coin.composition = composition
             
-            if analysis_data.get("condition") and not coin.condition_grade:
-                coin.condition_grade = analysis_data["condition"].get("grade")
+            if analysis_data.get("condition") and (coin.condition_grade is None or not str(coin.condition_grade).strip()):
+                grade = _truncate(analysis_data["condition"].get("grade"), _COIN_FIELD_LIMITS["condition_grade"])
+                if grade:
+                    coin.condition_grade = grade
             
             db.commit()
             db.refresh(ai_analysis)

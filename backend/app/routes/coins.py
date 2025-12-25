@@ -155,6 +155,14 @@ async def list_coins(
         primary_image = next((img.file_path for img in coin.images if img.is_primary), None)
         if not primary_image and coin.images:
             primary_image = coin.images[0].file_path
+
+        obverse_image = next((img.file_path for img in coin.images if img.image_type in ("obverse", "front")), None)
+        reverse_image = next((img.file_path for img in coin.images if img.image_type in ("reverse", "back")), None)
+        if not reverse_image:
+            reverse_image = next(
+                (img.file_path for img in coin.images if img.image_type not in ("obverse", "front") and not img.is_primary),
+                None
+            )
         
         estimated_value = None
         if coin.valuations:
@@ -169,7 +177,10 @@ async def list_coins(
             year=coin.year,
             condition_grade=coin.condition_grade,
             primary_image=primary_image,
-            estimated_value=estimated_value
+            obverse_image=obverse_image,
+            reverse_image=reverse_image,
+            estimated_value=estimated_value,
+            is_for_sale=coin.is_for_sale
         ))
     
     return result

@@ -1,13 +1,19 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { Camera, Upload, Loader2, CheckCircle, AlertCircle } from 'lucide-react';
 import { microscopeAPI, coinsAPI, aiAPI } from '../api';
 
 export default function ScanCoin() {
     const navigate = useNavigate();
+    const [searchParams] = useSearchParams();
+    const existingCoinId = searchParams.get('coinId');
+    const requestedSide = searchParams.get('side');
     const [step, setStep] = useState('capture'); // capture, analyze, edit, complete
-    const [capturedImage, setCapturedImage] = useState(null);
+    const [capturedImages, setCapturedImages] = useState({ obverse: null, reverse: null });
+    const [currentSide, setCurrentSide] = useState('obverse');
+    const [scanPrompt, setScanPrompt] = useState('Please scan the obverse side of the coin.');
+    const [qualityWarning, setQualityWarning] = useState('');
     const [coinData, setCoinData] = useState({});
     const [analysisResult, setAnalysisResult] = useState(null);
     const [valuationResult, setValuationResult] = useState(null);
@@ -17,6 +23,7 @@ export default function ScanCoin() {
     const [previewError, setPreviewError] = useState(false);
 
     const formatCurrency = (value) => (typeof value === 'number' ? value.toFixed(2) : 'N/A');
+    const currentSideLabel = currentSide === 'obverse' ? 'front (obverse)' : 'back (reverse)';
 
     // Query cameras
     const { data: camerasData } = useQuery({
@@ -25,6 +32,20 @@ export default function ScanCoin() {
     });
 
     const cameras = camerasData?.data?.cameras || [];
+
+    const { data: existingCoinData } = useQuery({
+        queryKey: ['coin', existingCoinId],
+        queryFn: () => coinsAPI.get(existingCoinId),
+        enabled: Boolean(existingCoinId),
+    });
+
+    const existingImages = existingCoinData?.data?.images || [];
+    const existingObverse = existingImages.find((img) => img.image_type === 'obverse');
+    const existingReverse = existingImages.find((img) => img.image_type === 'reverse');
+    const hasObverse = Boolean(capturedImages.obverse || existingObverse);
+    const hasReverse = Boolean(capturedImages.reverse || existingReverse);
+    const missingSides = !(hasObverse && hasReverse);
+    const missingSideLabel = hasObverse ? 'back (reverse)' : 'front (obverse)';
 
     useEffect(() => {
         if (!cameras.length) {
@@ -48,16 +69,16 @@ export default function ScanCoin() {
         return () => clearInterval(interval);
     }, [selectedCamera]);
 
-    // Capture mutation
-    const captureMutation = useMutation({
-        mutationFn: () => microscopeAPI.capture(selectedCamera),
-        onSuccess: (response) => {
-            setCapturedImage(response.data);
-            setStep('analyze');
-            // Auto-trigger analysis
-            analyzeMutation.mutate({ image_path: response.data.file_path });
-        },
-    });
+    useEffect(() => {
+        if (!requestedSide) {
+            return;
+        }
+        const normalized = requestedSide.toLowerCase();
+        if (normalized === 'obverse' || normalized === 'reverse') {
+            setCurrentSide(normalized);
+            setScanPrompt(`Please scan the ${normalized} side of the coin.`);
+        }
+    }, [requestedSide]);
 
     // Analysis mutation
     const analyzeMutation = useMutation({
@@ -83,6 +104,16 @@ export default function ScanCoin() {
         },
     });
 
+    useEffect(() => {
+        if (existingCoinId) {
+            return;
+        }
+        if (!analysisResult && capturedImages.obverse && !analyzeMutation.isPending) {
+            setStep('analyze');
+            analyzeMutation.mutate({ image_path: capturedImages.obverse.file_path });
+        }
+    }, [capturedImages.obverse, analysisResult, analyzeMutation, existingCoinId]);
+
     // Create coin mutation
     const createCoinMutation = useMutation({
         mutationFn: async (data) => {
@@ -91,18 +122,22 @@ export default function ScanCoin() {
             const coinId = coinResponse.data.id;
 
             // Upload image if we have one
-            if (capturedImage) {
+            const uploads = Object.entries(capturedImages).filter(([, value]) => value);
+            for (const [side, imageData] of uploads) {
                 const formData = new FormData();
-                const imageResponse = await fetch(`http://localhost:8000/images/${capturedImage.file_path}`);
+                const imageResponse = await fetch(`http://localhost:8000/images/${imageData.file_path}`);
                 const blob = await imageResponse.blob();
                 formData.append('file', blob, 'coin.jpg');
-                formData.append('image_type', 'obverse');
-                formData.append('is_primary', 'true');
+                formData.append('image_type', side);
+                formData.append('is_primary', side === 'obverse' ? 'true' : 'false');
                 await coinsAPI.uploadImage(coinId, formData);
+            }
 
+            const analysisImage = capturedImages.obverse || capturedImages.reverse;
+            if (analysisImage) {
                 // Trigger AI analysis with coin_id
                 await aiAPI.analyze({
-                    image_path: capturedImage.file_path,
+                    image_path: analysisImage.file_path,
                     coin_id: coinId,
                 });
             }
@@ -115,8 +150,83 @@ export default function ScanCoin() {
         },
     });
 
+    const attachToCoinMutation = useMutation({
+        mutationFn: async ({ imageData, sideLabel }) => {
+            if (!existingCoinId) {
+                return null;
+            }
+            const formData = new FormData();
+            const imageResponse = await fetch(`http://localhost:8000/images/${imageData.file_path}`);
+            const blob = await imageResponse.blob();
+            formData.append('file', blob, 'coin.jpg');
+            formData.append('image_type', sideLabel);
+            formData.append('is_primary', sideLabel === 'obverse' ? 'true' : 'false');
+            await coinsAPI.uploadImage(existingCoinId, formData);
+
+            if (sideLabel === 'obverse') {
+                await aiAPI.analyze({
+                    image_path: imageData.file_path,
+                    coin_id: existingCoinId,
+                });
+            }
+        },
+        onSuccess: () => {
+            setStep('complete');
+            setTimeout(() => navigate(`/coins/${existingCoinId}`), 1500);
+        },
+    });
+
+    // Capture mutation
+    const captureMutation = useMutation({
+        mutationFn: () => microscopeAPI.capture(selectedCamera, currentSide),
+        onSuccess: (response) => {
+            const quality = response.data.quality || {};
+            if (quality.ok === false) {
+                const reasons = [];
+                if (quality.is_blurry) reasons.push('Image looks blurry');
+                if (quality.is_dark) reasons.push('Image is too dark');
+                if (quality.is_bright) reasons.push('Image is too bright');
+                setQualityWarning(reasons.join('. ') || 'Image quality looks poor. Please rescan.');
+                return;
+            }
+
+            setQualityWarning('');
+
+            const detectedSide = response.data.side?.label || currentSide;
+            const sideLabel = ['obverse', 'reverse'].includes(detectedSide) ? detectedSide : currentSide;
+
+            setCapturedImages((prev) => ({
+                ...prev,
+                [sideLabel]: response.data,
+            }));
+
+            const nextSide = sideLabel === 'obverse' ? 'reverse' : 'obverse';
+            setCurrentSide(nextSide);
+            setScanPrompt(`Please scan the ${nextSide} side of the coin.`);
+
+            if (existingCoinId) {
+                attachToCoinMutation.mutate({ imageData: response.data, sideLabel });
+                return;
+            }
+
+            if (!analysisResult && sideLabel === 'obverse') {
+                setStep('analyze');
+                analyzeMutation.mutate({ image_path: response.data.file_path });
+            } else if (analysisResult) {
+                setStep('edit');
+            }
+        },
+    });
+
     const handleCapture = () => {
         captureMutation.mutate();
+    };
+
+    const handleScanOtherSide = () => {
+        const nextSide = capturedImages.obverse ? 'reverse' : 'obverse';
+        setCurrentSide(nextSide);
+        setScanPrompt(`Please scan the ${nextSide} side of the coin.`);
+        setStep('capture');
     };
 
     const handleSave = () => {
@@ -166,6 +276,27 @@ export default function ScanCoin() {
             <div className="card">
                 {step === 'capture' && (
                     <div className="space-y-6">
+                        <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
+                            <p className="text-sm text-gray-700">
+                                Now scanning: <span className="font-semibold">{currentSideLabel}</span>
+                            </p>
+                            {scanPrompt && (
+                                <p className="text-sm text-gray-600 mt-1">{scanPrompt}</p>
+                            )}
+                            <div className="flex items-center space-x-4 mt-3 text-sm text-gray-600">
+                                <span>
+                                    Obverse: {capturedImages.obverse ? 'captured' : 'missing'}
+                                </span>
+                                <span>
+                                    Reverse: {capturedImages.reverse ? 'captured' : 'missing'}
+                                </span>
+                            </div>
+                            {qualityWarning && (
+                                <div className="mt-3 text-sm text-red-700">
+                                    {qualityWarning} Please rescan the {currentSideLabel} side.
+                                </div>
+                            )}
+                        </div>
                         <div>
                             <label className="label">Select Camera</label>
                             <select
@@ -225,10 +356,18 @@ export default function ScanCoin() {
                             ) : (
                                 <>
                                     <Camera className="w-5 h-5" />
-                                    <span>Capture Image</span>
+                                    <span>Capture {currentSideLabel}</span>
                                 </>
                             )}
                         </button>
+                        {capturedImages.obverse || capturedImages.reverse ? (
+                            <button
+                                onClick={handleScanOtherSide}
+                                className="btn btn-secondary w-full"
+                            >
+                                Scan {missingSideLabel} side
+                            </button>
+                        ) : null}
                     </div>
                 )}
 
@@ -242,13 +381,39 @@ export default function ScanCoin() {
 
                 {step === 'edit' && (
                     <div className="space-y-6">
-                        {capturedImage && (
+                        {(capturedImages.obverse || capturedImages.reverse) && (
                             <div className="bg-gray-100 rounded-lg p-4">
-                                <img
-                                    src={`http://localhost:8000/images/${capturedImage.file_path}`}
-                                    alt="Captured coin"
-                                    className="max-w-sm mx-auto rounded-lg"
-                                />
+                                <div className="grid grid-cols-2 gap-4">
+                                    {capturedImages.obverse && (
+                                        <img
+                                            src={`http://localhost:8000/images/${capturedImages.obverse.file_path}`}
+                                            alt="Captured obverse"
+                                            className="w-full rounded-lg"
+                                        />
+                                    )}
+                                    {capturedImages.reverse && (
+                                        <img
+                                            src={`http://localhost:8000/images/${capturedImages.reverse.file_path}`}
+                                            alt="Captured reverse"
+                                            className="w-full rounded-lg"
+                                        />
+                                    )}
+                                </div>
+                            </div>
+                        )}
+
+                        {missingSides && !existingCoinId && (
+                            <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+                                <h4 className="font-semibold text-amber-900 mb-1">Scan the other side</h4>
+                                <p className="text-sm text-amber-700">
+                                    Please capture both sides before saving. Missing: {missingSideLabel}.
+                                </p>
+                                <button
+                                    onClick={handleScanOtherSide}
+                                    className="btn btn-secondary mt-3"
+                                >
+                                    Scan missing side
+                                </button>
                             </div>
                         )}
 
@@ -355,7 +520,7 @@ export default function ScanCoin() {
 
                         <button
                             onClick={handleSave}
-                            disabled={createCoinMutation.isPending}
+                            disabled={createCoinMutation.isPending || missingSides}
                             className="btn btn-primary w-full flex items-center justify-center space-x-2"
                         >
                             {createCoinMutation.isPending ? (
@@ -366,7 +531,7 @@ export default function ScanCoin() {
                             ) : (
                                 <>
                                     <CheckCircle className="w-5 h-5" />
-                                    <span>Save Coin</span>
+                                    <span>{missingSides ? 'Scan both sides to save' : 'Save Coin'}</span>
                                 </>
                             )}
                         </button>

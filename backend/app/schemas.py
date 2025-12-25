@@ -135,7 +135,10 @@ class CoinListSchema(BaseModel):
     year: Optional[int] = None
     condition_grade: Optional[str] = None
     primary_image: Optional[str] = None
+    obverse_image: Optional[str] = None
+    reverse_image: Optional[str] = None
     estimated_value: Optional[float] = None
+    is_for_sale: Optional[bool] = None
     
     class Config:
         from_attributes = True

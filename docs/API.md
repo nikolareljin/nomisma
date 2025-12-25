@@ -46,7 +46,10 @@ GET /api/coins
     "year": 1943,
     "condition_grade": "Very Fine",
     "primary_image": "path/to/image.jpg",
-    "estimated_value": 1.50
+    "obverse_image": "path/to/obverse.jpg",
+    "reverse_image": "path/to/reverse.jpg",
+    "estimated_value": 1.50,
+    "is_for_sale": false
   }
 ]
 ```
@@ -150,16 +153,29 @@ GET /api/microscope/devices
 ### Capture Image
 
 ```http
-POST /api/microscope/capture?camera_index=0
+POST /api/microscope/capture?camera_index=0&side_hint=obverse
 ```
 
 **Response:**
 ```json
 {
   "success": true,
-  "file_path": "temp/capture_20240101_120000_abc123.jpg",
-  "url": "/images/temp/capture_20240101_120000_abc123.jpg",
-  "timestamp": "20240101_120000"
+  "file_path": "temp/capture_obverse_20240101_120000_abc123.jpg",
+  "url": "/images/temp/capture_obverse_20240101_120000_abc123.jpg",
+  "timestamp": "20240101_120000",
+  "side": {
+    "label": "obverse",
+    "detected_label": "obverse",
+    "confidence": 0.7
+  },
+  "quality": {
+    "blur_score": 210.5,
+    "brightness": 114.2,
+    "is_blurry": false,
+    "is_dark": false,
+    "is_bright": false,
+    "ok": true
+  }
 }
 ```
 
@@ -211,7 +227,15 @@ POST /api/ai/analyze
       "assessment": "Likely Authentic",
       "confidence": 85
     }
-  }
+  },
+  "valuation": {
+    "estimated_value_low": 0.50,
+    "estimated_value_high": 2.00,
+    "estimated_value_avg": 1.00,
+    "market_demand": "Moderate"
+  },
+  "valuation_text": "Markdown text with comparisons and pricing notes",
+  "valuation_model": "gemini-2.5-flash"
 }
 ```
 
@@ -232,7 +256,9 @@ POST /api/ai/estimate-value/{coin_id}
     "rarity_score": 3,
     "market_demand": "Moderate",
     "confidence_level": "Medium"
-  }
+  },
+  "formatted_response": "Markdown text with comparisons and pricing notes",
+  "model_version": "gemini-2.5-flash"
 }
 ```
 

@@ -41,7 +41,7 @@ The dashboard provides an at-a-glance view of your coin collection.
 
 View the 6 most recently added coins with:
 - Inventory number (e.g., NOM-0001)
-- Primary image
+- Obverse + reverse thumbnails (when available)
 - Country and denomination
 - Year
 - Condition grade
@@ -55,7 +55,9 @@ View the 6 most recently added coins with:
 2. Select your microscope from the dropdown
 3. Position the coin under the microscope
 4. Adjust focus and lighting
-5. Click **Capture Image**
+5. Click **Capture** for the front (obverse)
+6. Follow the prompt to scan the back (reverse)
+7. If quality warnings appear (blurry/too dark/too bright), rescan that side
 
 **Tips**:
 - Ensure the coin is centered in the frame
@@ -64,13 +66,14 @@ View the 6 most recently added coins with:
 
 ### Step 2: AI Analysis
 
-The system automatically analyzes the captured image:
+The system automatically analyzes the obverse image and estimates value:
 
 - Identifies country, denomination, and year
 - Detects mint marks
 - Assesses condition and wear
 - Identifies defects or errors
 - Estimates authenticity
+- Estimates value range with comparisons
 
 This process takes 5-10 seconds.
 
@@ -81,6 +84,7 @@ Review the AI-detected information:
 - **Auto-filled fields**: Country, denomination, year, mint mark, composition, condition grade
 - **Editable**: All fields can be modified
 - **Additional fields**: Add notes, acquisition information, etc.
+ - **Value Range**: Review the estimated price range and detailed notes before listing
 
 **Fields**:
 - **Country**: Country of origin
@@ -88,6 +92,12 @@ Review the AI-detected information:
 - **Year**: Year minted
 - **Mint Mark**: Letter indicating mint location (D, S, P, etc.)
 - **Composition**: Metal content (e.g., "Copper", "Silver")
+
+### Rescanning an Existing Coin
+
+From a coin’s detail page you can:
+- **Rescan Obverse** or **Rescan Reverse** to replace a side
+- The new image is attached to the same coin and kept in its history
 - **Condition Grade**: Condition from Poor to Uncirculated
 - **Notes**: Any additional information
 

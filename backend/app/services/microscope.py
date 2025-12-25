@@ -1,7 +1,7 @@
 import cv2
 import os
 import glob
-from typing import List, Optional, Tuple, Union
+from typing import List, Optional, Tuple, Union, Dict
 from datetime import datetime
 import numpy as np
 
@@ -78,6 +78,31 @@ class MicroscopeService:
             if ret:
                 return frame
         return None
+
+    def evaluate_frame_quality(self, frame: np.ndarray) -> Dict[str, float]:
+        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        blur_score = float(cv2.Laplacian(gray, cv2.CV_64F).var())
+        brightness = float(np.mean(gray))
+        return {
+            "blur_score": blur_score,
+            "brightness": brightness
+        }
+
+    def detect_coin_side(self, frame: np.ndarray) -> Dict[str, Optional[Union[str, float]]]:
+        try:
+            cascade_path = os.path.join(cv2.data.haarcascades, "haarcascade_frontalface_default.xml")
+            face_cascade = cv2.CascadeClassifier(cascade_path)
+            gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+            faces = face_cascade.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=4, minSize=(30, 30))
+            if faces is not None and len(faces) > 0:
+                return {"label": "obverse", "confidence": 0.7}
+        except Exception:
+            pass
+        return {"label": "reverse", "confidence": 0.4}
+
+    def save_frame(self, frame: np.ndarray, save_path: str) -> bool:
+        os.makedirs(os.path.dirname(save_path), exist_ok=True)
+        return bool(cv2.imwrite(save_path, frame))
 
     def _probe_device(self, device_path: Union[int, str]) -> Tuple[bool, Optional[int], Optional[int], Optional[int]]:
         cap = self._open_capture(device_path)

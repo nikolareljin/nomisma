@@ -98,6 +98,20 @@ export default function CoinDetail() {
                                 <Edit2 className="w-4 h-4" />
                                 <span>Edit</span>
                             </button>
+                            <Link
+                                to={`/scan?coinId=${coinData.id}&side=obverse`}
+                                className="btn btn-secondary flex items-center space-x-2"
+                            >
+                                <Camera className="w-4 h-4" />
+                                <span>Rescan Obverse</span>
+                            </Link>
+                            <Link
+                                to={`/scan?coinId=${coinData.id}&side=reverse`}
+                                className="btn btn-secondary flex items-center space-x-2"
+                            >
+                                <Camera className="w-4 h-4" />
+                                <span>Rescan Reverse</span>
+                            </Link>
                             <button
                                 onClick={() => quickListMutation.mutate()}
                                 className="btn btn-gold flex items-center space-x-2"

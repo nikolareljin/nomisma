@@ -117,21 +117,39 @@ export default function CoinList() {
 }
 
 function CoinCard({ coin }) {
-    const imageUrl = coin.primary_image
-        ? `http://localhost:8000/images/${coin.primary_image}`
+    const obversePath = coin.obverse_image || coin.primary_image;
+    const obverseUrl = obversePath
+        ? `http://localhost:8000/images/${obversePath}`
         : 'https://via.placeholder.com/300x200?text=No+Image';
+    const reverseUrl = coin.reverse_image
+        ? `http://localhost:8000/images/${coin.reverse_image}`
+        : null;
 
     return (
         <Link to={`/coins/${coin.id}`} className="card hover:shadow-lg transition-shadow">
-            <div className="aspect-video bg-gray-100 rounded-lg mb-4 overflow-hidden">
+            <div className="aspect-video bg-gray-100 rounded-lg mb-4 overflow-hidden grid grid-cols-2">
                 <img
-                    src={imageUrl}
-                    alt={`${coin.country} ${coin.denomination}`}
+                    src={obverseUrl}
+                    alt={`${coin.country} ${coin.denomination} obverse`}
                     className="w-full h-full object-cover"
                     onError={(e) => {
                         e.target.src = 'https://via.placeholder.com/300x200?text=No+Image';
                     }}
                 />
+                {reverseUrl ? (
+                    <img
+                        src={reverseUrl}
+                        alt={`${coin.country} ${coin.denomination} reverse`}
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                            e.target.src = 'https://via.placeholder.com/300x200?text=No+Image';
+                        }}
+                    />
+                ) : (
+                    <div className="flex items-center justify-center text-xs text-gray-400 bg-gray-50">
+                        No reverse
+                    </div>
+                )}
             </div>
             <div className="space-y-2">
                 <div className="flex items-center justify-between">
@@ -157,20 +175,40 @@ function CoinCard({ coin }) {
 }
 
 function CoinListItem({ coin }) {
-    const imageUrl = coin.primary_image
-        ? `http://localhost:8000/images/${coin.primary_image}`
+    const obversePath = coin.obverse_image || coin.primary_image;
+    const obverseUrl = obversePath
+        ? `http://localhost:8000/images/${obversePath}`
         : 'https://via.placeholder.com/100x100?text=No+Image';
+    const reverseUrl = coin.reverse_image
+        ? `http://localhost:8000/images/${coin.reverse_image}`
+        : null;
 
     return (
         <Link to={`/coins/${coin.id}`} className="flex items-center space-x-4 py-4 hover:bg-gray-50 transition-colors">
-            <img
-                src={imageUrl}
-                alt={`${coin.country} ${coin.denomination}`}
-                className="w-20 h-20 object-cover rounded-lg"
-                onError={(e) => {
-                    e.target.src = 'https://via.placeholder.com/100x100?text=No+Image';
-                }}
-            />
+            <div className="flex space-x-2">
+                <img
+                    src={obverseUrl}
+                    alt={`${coin.country} ${coin.denomination} obverse`}
+                    className="w-16 h-16 object-cover rounded-lg"
+                    onError={(e) => {
+                        e.target.src = 'https://via.placeholder.com/100x100?text=No+Image';
+                    }}
+                />
+                {reverseUrl ? (
+                    <img
+                        src={reverseUrl}
+                        alt={`${coin.country} ${coin.denomination} reverse`}
+                        className="w-16 h-16 object-cover rounded-lg"
+                        onError={(e) => {
+                            e.target.src = 'https://via.placeholder.com/100x100?text=No+Image';
+                        }}
+                    />
+                ) : (
+                    <div className="w-16 h-16 rounded-lg bg-gray-100 text-xs text-gray-400 flex items-center justify-center">
+                        No reverse
+                    </div>
+                )}
+            </div>
             <div className="flex-1 min-w-0">
                 <div className="flex items-center space-x-3 mb-1">
                     <span className="text-xs font-mono text-gray-500">{coin.inventory_number}</span>

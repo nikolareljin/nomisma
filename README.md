@@ -131,10 +131,12 @@ The application will be available at:
 1. Navigate to **Scan Coin** page
 2. Select your microscope from the dropdown
 3. Position the coin under the microscope
-4. Click **Capture Image**
-5. AI will automatically analyze the coin
-6. Review and edit the detected information
-7. Click **Save Coin**
+4. Click **Capture** for the front (obverse)
+5. Follow the prompt to scan the back (reverse)
+6. If quality is flagged (blurry/too dark/too bright), rescan the same side
+7. AI will automatically analyze the coin and estimate value
+8. Review and edit the detected information
+9. Click **Save Coin**
 
 ### Managing Your Collection
 
@@ -142,14 +144,13 @@ The application will be available at:
 - **Collection**: Browse, search, and filter your coins
 - **Coin Details**: View detailed information, AI analysis, and valuations
 - **Edit**: Update coin information as needed
+- **Rescan**: Re-scan obverse or reverse images from the coin detail page
 
 ### Listing on eBay
 
 1. Open a coin's detail page
-2. Click **List on eBay**
-3. Review the pre-populated listing information
-4. Adjust pricing and description
-5. Click **Create Listing**
+2. Click **Quick List on eBay** for a one-click listing (uses the estimated value)
+3. Or click **Customize Listing** to edit details before listing
 
 ## Project Structure
 

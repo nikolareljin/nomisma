@@ -162,21 +162,39 @@ function QuickAction({ to, icon: Icon, title, description, color }) {
 }
 
 function CoinCard({ coin }) {
-    const imageUrl = coin.primary_image
-        ? `http://localhost:8000/images/${coin.primary_image}`
+    const obversePath = coin.obverse_image || coin.primary_image;
+    const obverseUrl = obversePath
+        ? `http://localhost:8000/images/${obversePath}`
         : 'https://via.placeholder.com/300x200?text=No+Image';
+    const reverseUrl = coin.reverse_image
+        ? `http://localhost:8000/images/${coin.reverse_image}`
+        : null;
 
     return (
         <Link to={`/coins/${coin.id}`} className="card hover:shadow-lg transition-shadow">
-            <div className="aspect-video bg-gray-100 rounded-lg mb-4 overflow-hidden">
+            <div className="aspect-video bg-gray-100 rounded-lg mb-4 overflow-hidden grid grid-cols-2">
                 <img
-                    src={imageUrl}
-                    alt={`${coin.country} ${coin.denomination}`}
+                    src={obverseUrl}
+                    alt={`${coin.country} ${coin.denomination} obverse`}
                     className="w-full h-full object-cover"
                     onError={(e) => {
                         e.target.src = 'https://via.placeholder.com/300x200?text=No+Image';
                     }}
                 />
+                {reverseUrl ? (
+                    <img
+                        src={reverseUrl}
+                        alt={`${coin.country} ${coin.denomination} reverse`}
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                            e.target.src = 'https://via.placeholder.com/300x200?text=No+Image';
+                        }}
+                    />
+                ) : (
+                    <div className="flex items-center justify-center text-xs text-gray-400 bg-gray-50">
+                        No reverse
+                    </div>
+                )}
             </div>
             <div className="space-y-2">
                 <div className="flex items-center justify-between">
