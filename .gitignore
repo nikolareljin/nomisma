@@ -42,3 +42,5 @@ images/
 
 # Docker
 docker-compose.override.yml
+
+/ignore/
