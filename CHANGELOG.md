@@ -14,6 +14,7 @@
 - Add cross-platform setup scripts and one-line installers.
 - Prompt for install path during setup.
 - Fix backend test runner to rebuild image and run pytest via Python module.
+- Add Gemini analysis option to `./test -t api` with image input and jq output.
 - Refresh README structure and test docs.
 - Update frontend tests.
 

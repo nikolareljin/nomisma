@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, Integer, Numeric, Boolean, DateTime, Text, ForeignKey, JSON
+from sqlalchemy import Column, String, Integer, Numeric, Boolean, DateTime, Text, ForeignKey, JSON, text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 from datetime import datetime
@@ -31,7 +31,12 @@ class Coin(Base):
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
     # Internal inventory tracking
-    inventory_number = Column(String(20), unique=True, nullable=False)
+    inventory_number = Column(
+        String(20),
+        unique=True,
+        nullable=False,
+        server_default=text("('NOM-' || LPAD(nextval('coin_inventory_seq')::TEXT, 4, '0'))")
+    )
     
     # Basic information
     country = Column(String(100))

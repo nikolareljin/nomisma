@@ -1,11 +1,13 @@
 #!/bin/bash
 # SCRIPT: test
 # DESCRIPTION: Run Nomisma tests using Docker containers
-# USAGE: ./test [-t backend|frontend|e2e|api] [-h]
+# USAGE: ./test [-t backend|frontend|e2e|api] [-i image_path] [-h]
 # PARAMETERS:
 #   -t    Test type to run (backend, frontend, e2e, api)
+#   -i    Image path for Gemini analysis (api test only)
 #   -h    Display this help message
 # EXAMPLE: ./test -t backend
+# EXAMPLE: ./test -t api -i /path/to/image.jpg
 
 set -euo pipefail
 
@@ -35,8 +37,9 @@ source "${SCRIPT_DIR}/.script-helpers/helpers.sh"
 shlib_import logging help
 
 TEST_TYPE="all"
+IMAGE_PATH=""
 
-while getopts "ht:" opt; do
+while getopts "ht:i:" opt; do
     case $opt in
         h)
             display_help "$0"
@@ -44,6 +47,9 @@ while getopts "ht:" opt; do
             ;;
         t)
             TEST_TYPE="$OPTARG"
+            ;;
+        i)
+            IMAGE_PATH="$OPTARG"
             ;;
         \?)
             echo "Invalid option: -$OPTARG" >&2
@@ -61,6 +67,11 @@ case "$TEST_TYPE" in
         exit 1
         ;;
 esac
+
+if [ -n "$IMAGE_PATH" ] && [ "$TEST_TYPE" != "api" ]; then
+    log_error "Image path (-i) is only supported with -t api"
+    exit 1
+fi
 
 if ! command -v docker &> /dev/null; then
     log_error "Docker is not installed"
@@ -187,6 +198,76 @@ PY
     return 1
 }
 
+copy_image_to_backend() {
+    local source_path="$1"
+    local dest_name="$2"
+    local id
+
+    id=$(${COMPOSE_CMD[@]} ps -q backend)
+    if [ -z "$id" ]; then
+        log_error "Backend container not found"
+        exit 1
+    fi
+
+    docker cp "$source_path" "${id}:/app/images/$dest_name"
+}
+
+ensure_gemini_api_key() {
+    if ! ${COMPOSE_CMD[@]} exec -T backend sh -lc 'test -n "$GEMINI_API_KEY"'; then
+        log_error "GEMINI_API_KEY is not set for the backend container"
+        exit 1
+    fi
+}
+
+get_api_token() {
+    local username="$1"
+    local password="$2"
+    local email="$3"
+    local register_body
+    local register_code
+    local login_body
+    local login_code
+    local token
+
+    register_body="$(mktemp)"
+    login_body="$(mktemp)"
+
+    register_code=$(curl -sS -o "$register_body" -w "%{http_code}" \
+        -X POST "http://localhost:8000/api/auth/register" \
+        -H "Content-Type: application/json" \
+        -d "{\"username\":\"$username\",\"email\":\"$email\",\"password\":\"$password\"}")
+
+    if [ "$register_code" -ne 201 ] && [ "$register_code" -ne 400 ]; then
+        log_error "Failed to register test user (status $register_code)"
+        cat "$register_body"
+        rm -f "$register_body" "$login_body"
+        exit 1
+    fi
+
+    login_code=$(curl -sS -o "$login_body" -w "%{http_code}" \
+        -X POST "http://localhost:8000/api/auth/login" \
+        -H "Content-Type: application/x-www-form-urlencoded" \
+        --data-urlencode "username=$username" \
+        --data-urlencode "password=$password")
+
+    if [ "$login_code" -ne 200 ]; then
+        log_error "Failed to log in test user (status $login_code)"
+        cat "$login_body"
+        rm -f "$register_body" "$login_body"
+        exit 1
+    fi
+
+    token=$(jq -r '.access_token // empty' "$login_body")
+    rm -f "$register_body" "$login_body"
+
+    if [ -z "$token" ] || [ "$token" = "null" ]; then
+        log_error "Login succeeded but no access token returned"
+        exit 1
+    fi
+
+    echo "$token"
+}
+
 stop_started_services() {
     if [ ${#STARTED_SERVICES[@]} -eq 0 ]; then
         return 0
@@ -287,6 +368,52 @@ print(response.json())
 if response.status_code != 200 or response.json() != {"status": "healthy"}:
     raise SystemExit(1)
 PY
+
+    if [ -z "$IMAGE_PATH" ]; then
+        return 0
+    fi
+
+    if [ ! -f "$IMAGE_PATH" ]; then
+        log_error "Image path not found: $IMAGE_PATH"
+        exit 1
+    fi
+
+    if ! command -v jq &> /dev/null; then
+        log_error "jq is required for API analysis output"
+        exit 1
+    fi
+
+    ensure_gemini_api_key
+
+    local image_name
+    local user_seed
+    local token
+    local analysis_body
+    local analysis_code
+
+    image_name="$(date +%s)_$(basename "$IMAGE_PATH")"
+    copy_image_to_backend "$IMAGE_PATH" "$image_name"
+
+    user_seed="$(date +%s)_${RANDOM}_$$"
+    token=$(get_api_token "test_user_$user_seed" "test_password_$user_seed" "test_$user_seed@example.com")
+
+    analysis_body="$(mktemp)"
+    analysis_code=$(curl -sS -o "$analysis_body" -w "%{http_code}" \
+        -X POST "http://localhost:8000/api/ai/analyze" \
+        -H "Authorization: Bearer $token" \
+        -H "Content-Type: application/json" \
+        -d "{\"image_path\":\"$image_name\"}")
+
+    if [ "$analysis_code" -ne 200 ]; then
+        log_error "Gemini analysis failed (status $analysis_code)"
+        cat "$analysis_body"
+        rm -f "$analysis_body"
+        exit 1
+    fi
+
+    log_info "Gemini analysis result:"
+    jq . "$analysis_body" | tee "$BACKEND_RESULTS/gemini_analysis.json"
+    rm -f "$analysis_body"
 }
 
 if [ "$TEST_TYPE" = "all" ] || [ "$TEST_TYPE" = "backend" ]; then

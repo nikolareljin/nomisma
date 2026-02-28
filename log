@@ -1,0 +1,79 @@
+#!/bin/bash
+# SCRIPT: log
+# DESCRIPTION: Stream logs for a specific Nomisma service container
+# USAGE: ./log -t <service> [-h]
+# PARAMETERS:
+#   -t    Service/container name to follow (e.g., backend, frontend, db)
+#   -h    Display this help message
+# EXAMPLE: ./log -t backend
+
+# Source script-helpers
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Check if script-helpers is installed
+if [ ! -f "${SCRIPT_DIR}/.script-helpers/helpers.sh" ]; then
+    echo "⚠️  Warning: script-helpers not found"
+    echo "This script requires the script-helpers library."
+    echo ""
+    echo "To install it, run:"
+    echo "  ./update"
+    echo ""
+    read -p "Would you like to run ./update now? (y/n): " response
+    if [[ "$response" =~ ^[Yy]$ ]]; then
+        "${SCRIPT_DIR}/update"
+        echo ""
+        echo "Please run ./log again"
+        exit 0
+    else
+        echo "Exiting. Please run ./update before using this script."
+        exit 1
+    fi
+fi
+
+source "${SCRIPT_DIR}/.script-helpers/helpers.sh"
+shlib_import logging help
+
+SERVICE=""
+
+while getopts "ht:" opt; do
+    case $opt in
+        h)
+            display_help "$0"
+            exit 0
+            ;;
+        t)
+            SERVICE="$OPTARG"
+            ;;
+        \?)
+            echo "Invalid option: -$OPTARG" >&2
+            echo "Use -h for help"
+            exit 1
+            ;;
+    esac
+done
+
+if [ -z "$SERVICE" ]; then
+    log_error "Service name is required"
+    echo "Use -t <service> (e.g., backend, frontend, db)"
+    exit 1
+fi
+
+# Check if Docker Compose is available
+if command -v docker-compose &> /dev/null; then
+    COMPOSE_CMD="docker-compose"
+elif docker compose version &> /dev/null; then
+    COMPOSE_CMD="docker compose"
+else
+    log_error "Docker Compose not found"
+    exit 1
+fi
+
+if ! $COMPOSE_CMD config --services 2>/dev/null | grep -qx "$SERVICE"; then
+    log_error "Unknown service: $SERVICE"
+    echo "Available services:"
+    $COMPOSE_CMD config --services 2>/dev/null
+    exit 1
+fi
+
+log_info "Streaming logs for service: $SERVICE"
+$COMPOSE_CMD logs -f "$SERVICE"
