@@ -1,5 +1,10 @@
 # Changelog
 
+## 2025-12-20
+- Initial project import and README.
+- Update start scripts to help configure API keys.
+- Refresh `.env` examples.
+
 ## 2025-12-21
 - Fix Docker build issues (frontend install/build, backend deps) and CI workflow.
 - Make database init idempotent and add microscope compose override + prompt.
@@ -17,8 +22,3 @@
 - Add Gemini analysis option to `./test -t api` with image input and jq output.
 - Refresh README structure and test docs.
 - Update frontend tests.
-
-## 2025-12-20
-- Initial project import and README.
-- Update start scripts to help configure API keys.
-- Refresh `.env` examples.
