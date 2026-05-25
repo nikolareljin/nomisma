@@ -2,9 +2,10 @@ name: CI/CD Pipeline
 
 on:
   push:
-    branches: [ main, master ]
-  pull_request:
-    branches: [ main, master ]
+    branches: [main, master]
+    paths-ignore:
+      - "docs/**"
+      - "**/*.md"
 
 jobs:
   test-backend:
@@ -61,12 +62,12 @@ jobs:
       with:
         node-version: '20'
         cache: 'npm'
-        cache-dependency-path: frontend/package.json
-    
+        cache-dependency-path: frontend/package-lock.json
+
     - name: Install dependencies
       run: |
         cd frontend
-        npm install
+        npm ci
     
     - name: Lint
       run: |

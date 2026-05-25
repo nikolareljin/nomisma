@@ -1,0 +1,30 @@
+name: PR Gate
+
+on:
+  pull_request:
+    branches: [main, master]
+
+concurrency:
+  group: pr-gate-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    uses: nikolareljin/ci-helpers/.github/workflows/pr-gate.yml@production
+    with:
+      python_version: "3.11"
+      working_directory: backend
+      install_command: "pip install flake8"
+      lint_command: "flake8 app --count --select=E9,F63,F7,F82 --show-source --statistics"
+      test_command: ""
+      build_command: ""
+
+  frontend:
+    uses: nikolareljin/ci-helpers/.github/workflows/pr-gate.yml@production
+    with:
+      node_version: "20"
+      working_directory: frontend
+      install_command: "npm ci"
+      lint_command: ""
+      test_command: ""
+      build_command: "npm run build"
