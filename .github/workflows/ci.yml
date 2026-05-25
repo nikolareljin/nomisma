@@ -5,7 +5,7 @@ on:
     branches: [main, master]
     paths-ignore:
       - "docs/**"
-      - "*.md"
+      - "**/*.md"
 
 jobs:
   test-backend:

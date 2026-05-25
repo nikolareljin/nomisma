@@ -3,9 +3,6 @@ name: PR Gate
 on:
   pull_request:
     branches: [main, master]
-    paths-ignore:
-      - "docs/**"
-      - "*.md"
 
 concurrency:
   group: pr-gate-${{ github.event.pull_request.number || github.ref }}
