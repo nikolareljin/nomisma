@@ -387,3 +387,10 @@ The inventory number is searchable and displayed prominently throughout the appl
 ### Nomisma
 
 Nomisma (νόμισμα) is the Ancient Greek word for money, currency, or a current coin, deriving from nomos (νόμος) meaning "law, custom, or usage," signifying money as something established by convention rather than nature. It specifically referred to official currency, famously the gold Byzantine solidus, and links to the English "numismatics" (study of coins) through Latin.
+
+
+## Clone traffic
+
+![Clone traffic](https://raw.githubusercontent.com/nikolareljin/stats/main/charts/nomisma.svg)
+
+_Updated daily. Total and unique cloners over the last 14 days._
